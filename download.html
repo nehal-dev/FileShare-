@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download - Varmax File Share</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        :root {
+            --primary: #4CAF50;
+            --primary-dark: #45a049;
+            --background: #1a1a1a;
+            --surface: #2d2d2d;
+            --surface-light: #404040;
+            --text: #ffffff;
+            --text-secondary: rgba(255,255,255,0.7);
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--background) 0%, #2d2d2d 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: var(--surface);
+            border-radius: 20px;
+            padding: 40px;
+            margin-top: 50px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            animation: slideUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(40px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), #69f0ae);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 40px;
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 2.5em;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .file-info {
+            background: var(--surface-light);
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            animation: fadeIn 0.6s ease-out 0.3s both;
+        }
+
+        .file-info p {
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+            color: var(--text-secondary);
+        }
+
+        .file-info p strong {
+            color: var(--text);
+            margin-right: 10px;
+            min-width: 120px;
+        }
+
+        .file-info .material-icons {
+            margin-right: 10px;
+            color: var(--primary);
+        }
+
+        .download-btn {
+            width: 100%;
+            padding: 20px;
+            background: var(--primary);
+            border: none;
+            border-radius: 15px;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 500;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+            animation: fadeIn 0.6s ease-out 0.6s both;
+        }
+
+        .download-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+        }
+
+        .download-btn .icon {
+            font-size: 24px;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 15px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            text-align: center;
+            letter-spacing: 1px;
+            opacity: 0.7;
+            transition: opacity 0.3s ease;
+        }
+
+        .footer:hover {
+            opacity: 1;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 30px;
+                margin-top: 30px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .file-info {
+                padding: 20px;
+            }
+
+            .download-btn {
+                padding: 15px;
+                font-size: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+                margin-top: 20px;
+            }
+
+            h1 {
+                font-size: 1.8em;
+                margin-bottom: 30px;
+            }
+
+            .file-info p {
+                font-size: 14px;
+            }
+
+            .file-info p strong {
+                min-width: 100px;
+            }
+
+            .download-btn {
+                padding: 12px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Varmax File Share</h1>
+        <div class="file-info">
+            <p><span class="material-icons">insert_drive_file</span><strong>File Name:</strong> <span id="fileName"></span></p>
+            <p><span class="material-icons">storage</span><strong>File Size:</strong> <span id="fileSize"></span></p>
+            <p><span class="material-icons">schedule</span><strong>Upload Date:</strong> <span id="uploadDate"></span></p>
+        </div>
+        <button class="download-btn" id="downloadBtn">
+            <span class="material-icons icon">download</span>
+            Download File
+        </button>
+    </div>
+    <div class="footer">Made By NZ R</div>
+
+    <script>
+        const fileId = window.location.pathname.split('/').pop();
+
+        fetch(`/file-info/${fileId}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('fileName').textContent = data.fileName;
+                document.getElementById('fileSize').textContent = formatSize(data.fileSize);
+                document.getElementById('uploadDate').textContent = new Date(data.uploadDate).toLocaleString();
+                document.title = `Download ${data.fileName} - Varmax File Share`;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to load file information');
+            });
+
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            window.location.href = `/download-file/${fileId}`;
+        });
+
+        function formatSize(bytes) {
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            if (bytes === 0) return '0 Bytes';
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return Math.round(bytes / Math.pow(1024, i)) + ' ' + sizes[i];
+        }
+    </script>
+</body>
+</html>

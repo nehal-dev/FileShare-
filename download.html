@@ -84,7 +84,6 @@
             border-radius: 15px;
             padding: 30px;
             margin-bottom: 30px;
-            animation: fadeIn 0.6s ease-out 0.3s both;
         }
 
         .file-list {
@@ -101,7 +100,7 @@
             display: flex;
             align-items: center;
             gap: 20px;
-            transition: transform 0.3s ease;
+            transition: all 0.3s ease;
         }
 
         .file-item:hover {
@@ -132,18 +131,41 @@
             font-size: 0.9em;
         }
 
-        .info-item {
+        .download-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 8px;
         }
 
-        .info-item .material-icons {
-            font-size: 16px;
-            color: var(--primary);
+        .download-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
         }
 
-        .download-btn {
+        .progress-bar {
+            height: 6px;
+            background: var(--surface);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .progress {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--primary-light));
+            transition: width 0.3s ease;
+        }
+
+        .download-all-btn {
             width: 100%;
             padding: 20px;
             background: var(--primary);
@@ -161,65 +183,11 @@
             letter-spacing: 1px;
             font-weight: 500;
             box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
-            animation: fadeIn 0.6s ease-out 0.6s both;
         }
 
-        .download-btn:hover {
+        .download-all-btn:hover {
             background: var(--primary-dark);
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
-        }
-
-        .download-btn .icon {
-            font-size: 24px;
-        }
-
-        .download-progress {
-            margin-top: 20px;
-            display: none;
-        }
-
-        .progress-bar {
-            height: 10px;
-            background: var(--surface);
-            border-radius: 5px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .progress {
-            width: 0%;
-            height: 100%;
-            background: linear-gradient(90deg, var(--primary), var(--primary-light));
-            transition: width 0.3s ease;
-            position: relative;
-        }
-
-        .progress::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(
-                90deg,
-                transparent,
-                rgba(255, 255, 255, 0.2),
-                transparent
-            );
-            animation: shimmer 1.5s infinite;
-        }
-
-        @keyframes shimmer {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
-        }
-
-        .progress-text {
-            text-align: center;
-            margin-top: 10px;
-            color: var(--text-secondary);
         }
 
         .footer {
@@ -227,58 +195,22 @@
             color: var(--text-secondary);
             font-size: 12px;
             text-align: center;
-            letter-spacing: 1px;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--primary);
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--primary-dark);
         }
 
         @media (max-width: 768px) {
             .container {
-                padding: 30px;
-                margin-top: 30px;
-            }
-
-            h1 {
-                font-size: 2em;
+                padding: 20px;
+                margin-top: 20px;
             }
 
             .file-item {
-                padding: 15px;
                 flex-direction: column;
                 text-align: center;
-                gap: 10px;
             }
 
             .file-info {
                 flex-direction: column;
                 gap: 10px;
-                align-items: center;
-            }
-
-            .download-btn {
-                padding: 15px;
-                font-size: 16px;
             }
         }
     </style>
@@ -294,17 +226,10 @@
             <div class="file-list" id="fileList"></div>
         </div>
 
-        <button class="download-btn" id="downloadBtn">
-            <span class="material-icons icon">download</span>
+        <button class="download-all-btn" id="downloadAllBtn">
+            <span class="material-icons">download_all</span>
             Download All Files
         </button>
-
-        <div class="download-progress" id="downloadProgress">
-            <div class="progress-bar">
-                <div class="progress" id="progressBar"></div>
-            </div>
-            <div class="progress-text" id="progressText">Preparing download...</div>
-        </div>
     </div>
     <div class="footer">VarMax Pro By NZ R</div>
 
@@ -313,10 +238,8 @@
         const socket = io();
         const groupId = window.location.pathname.split('/').pop();
         const fileList = document.getElementById('fileList');
-        const downloadBtn = document.getElementById('downloadBtn');
-        const downloadProgress = document.getElementById('downloadProgress');
-        const progressBar = document.getElementById('progressBar');
-        const progressText = document.getElementById('progressText');
+        const downloadAllBtn = document.getElementById('downloadAllBtn');
+        let filesData = [];
 
         function formatSize(bytes) {
             const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -334,9 +257,53 @@
             return 'insert_drive_file';
         }
 
+        async function downloadFile(fileId, fileName) {
+            const progressBar = document.querySelector(`#progress-${fileId}`);
+            progressBar.style.display = 'block';
+            
+            try {
+                const response = await fetch(`/download-file/${fileId}`);
+                const reader = response.body.getReader();
+                const contentLength = +response.headers.get('Content-Length');
+                
+                const chunks = [];
+                let receivedLength = 0;
+
+                while(true) {
+                    const {done, value} = await reader.read();
+                    
+                    if (done) break;
+                    
+                    chunks.push(value);
+                    receivedLength += value.length;
+                    const progress = (receivedLength / contentLength) * 100;
+                    progressBar.querySelector('.progress').style.width = `${progress}%`;
+                }
+
+                const blob = new Blob(chunks);
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Download failed:', error);
+            }
+        }
+
+        async function downloadAllFiles() {
+            for (const file of filesData) {
+                await downloadFile(file.fileId, file.fileName);
+            }
+        }
+
         fetch(`/group-info/${groupId}`)
             .then(response => response.json())
             .then(files => {
+                filesData = files;
                 files.forEach(file => {
                     const fileItem = document.createElement('div');
                     fileItem.className = 'file-item';
@@ -345,86 +312,31 @@
                         <div class="file-details">
                             <div class="file-name">${file.fileName}</div>
                             <div class="file-info">
-                                <span class="info-item">
-                                    <span class="material-icons">storage</span>
-                                    ${formatSize(file.fileSize)}
-                                </span>
-                                <span class="info-item">
-                                    <span class="material-icons">schedule</span>
-                                    ${new Date(file.uploadDate).toLocaleString()}
-                                </span>
+                                <span>${formatSize(file.fileSize)}</span>
+                                <span>${new Date(file.uploadDate).toLocaleString()}</span>
+                            </div>
+                            <div class="progress-bar" id="progress-${file.fileId}">
+                                <div class="progress"></div>
                             </div>
                         </div>
+                        <button class="download-btn" onclick="downloadFile('${file.fileId}', '${file.fileName}')">
+                            <span class="material-icons">download</span>
+                        </button>
                     `;
                     fileList.appendChild(fileItem);
                 });
-
-                document.title = `Download ${files.length > 1 ? 'Files' : files[0].fileName} - VarMax Pro`;
             })
             .catch(error => {
                 console.error('Error:', error);
                 alert('Failed to load file information');
             });
 
-        downloadBtn.addEventListener('click', () => {
-            downloadProgress.style.display = 'block';
-            progressBar.style.width = '0%';
-            progressText.textContent = 'Starting download...';
+        downloadAllBtn.addEventListener('click', downloadAllFiles);
 
-            fetch(`/download-group/${groupId}`)
-                .then(response => {
-                    const reader = response.body.getReader();
-                    const contentLength = +response.headers.get('Content-Length');
-                    let receivedLength = 0;
-
-                    return new ReadableStream({
-                        start(controller) {
-                            function push() {
-                                reader.read().then(({done, value}) => {
-                                    if (done) {
-                                        controller.close();
-                                        progressBar.style.width = '100%';
-                                        progressText.textContent = 'Download complete!';
-                                        return;
-                                    }
-                                    receivedLength += value.length;
-                                    const percentage = (receivedLength / contentLength) * 100;
-                                    progressBar.style.width = percentage + '%';
-                                    if (percentage < 100) {
-                                        progressText.textContent = 'Downloading... Please wait a little.';
-                                    } else {
-                                        progressText.textContent = 'Almost done!';
-                                    }
-                                    controller.enqueue(value);
-                                    push();
-                                });
-                            }
-                            push();
-                        }
-                    });
-                })
-                .then(stream => new Response(stream))
-                .then(response => response.blob())
-                .then(blob => {
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = `VarMax_Files_${groupId}.zip`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    progressText.textContent = 'Download failed. Please try again.';
-                });
-        });
-
-        socket.on('downloadProgress', (data) => {
-            if (data.groupId === groupId) {
-                progressBar.style.width = data.percentage + '%';
-                progressText.textContent = 'Downloading... Please wait a little.';
+        socket.on('fileProgress', (data) => {
+            const progressBar = document.querySelector(`#progress-${data.fileId}`);
+            if (progressBar) {
+                progressBar.querySelector('.progress').style.width = `${data.percentage}%`;
             }
         });
     </script>

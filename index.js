@@ -31,6 +31,10 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+app.get('/download/:groupId', (req, res) => {
+    res.sendFile(path.join(__dirname, 'download.html'));
+});
+
 app.post('/upload', upload.array('files', 50), (req, res) => {
     const groupId = crypto.randomBytes(8).toString('hex');
     const uploadedFiles = req.files.map(file => ({
@@ -56,16 +60,24 @@ app.get('/group-info/:groupId', (req, res) => {
     }
 });
 
-app.get('/download/:fileId', (req, res) => {
+app.get('/download-file/:fileId', (req, res) => {
     const fileInfo = files.get(req.params.fileId);
-    if (fileInfo) {
-        const fileStream = fs.createReadStream(fileInfo.path);
-        res.setHeader('Content-Disposition', `attachment; filename="${fileInfo.fileName}"`);
-        res.setHeader('Content-Type', fileInfo.mimeType);
-        fileStream.pipe(res);
-    } else {
-        res.status(404).json({ error: 'File not found' });
+    if (!fileInfo) {
+        return res.status(404).json({ error: 'File not found' });
     }
+
+    const fileStream = fs.createReadStream(fileInfo.path);
+    res.setHeader('Content-Disposition', `attachment; filename="${fileInfo.fileName}"`);
+    res.setHeader('Content-Type', fileInfo.mimeType);
+
+    let downloaded = 0;
+    fileStream.on('data', chunk => {
+        downloaded += chunk.length;
+        const percentage = (downloaded / fileInfo.fileSize) * 100;
+        io.emit('fileProgress', { fileId: req.params.fileId, percentage });
+    });
+
+    fileStream.pipe(res);
 });
 
 setInterval(() => {

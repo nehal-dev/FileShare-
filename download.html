@@ -390,7 +390,11 @@
                                     receivedLength += value.length;
                                     const percentage = (receivedLength / contentLength) * 100;
                                     progressBar.style.width = percentage + '%';
-                                    progressText.textContent = `Downloading... ${Math.round(percentage)}%`;
+                                    if (percentage < 100) {
+                                        progressText.textContent = 'Downloading... Please wait a little.';
+                                    } else {
+                                        progressText.textContent = 'Almost done!';
+                                    }
                                     controller.enqueue(value);
                                     push();
                                 });
@@ -420,7 +424,7 @@
         socket.on('downloadProgress', (data) => {
             if (data.groupId === groupId) {
                 progressBar.style.width = data.percentage + '%';
-                progressText.textContent = `Downloading... ${Math.round(data.percentage)}%`;
+                progressText.textContent = 'Downloading... Please wait a little.';
             }
         });
     </script>

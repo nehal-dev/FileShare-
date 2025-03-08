@@ -18,120 +18,131 @@ const storage = multer.diskStorage({
 
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 500 * 1024 * 1024 },
-    fileFilter: (req, file, cb) => {
-        const allowedTypes = /jpeg|jpg|png|gif|mp4|webm|mov/;
-        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = allowedTypes.test(file.mimetype);
-        if (extname && mimetype) cb(null, true);
-        else cb('Error: Images and Videos Only!');
-    }
+    limits: { fileSize: 1024 * 1024 * 1024 }
 });
 
-if (!fs.existsSync('./uploads')) fs.mkdirSync('./uploads');
-if (!fs.existsSync('./archives')) fs.mkdirSync('./archives');
+if (!fs.existsSync('./uploads')) {
+    fs.mkdirSync('./uploads');
+}
+
+if (!fs.existsSync('./temp')) {
+    fs.mkdirSync('./temp');
+}
 
 const files = new Map();
-const bundles = new Map();
+const groupUploads = new Map();
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.get('/download/:bundleId', (req, res) => {
+app.get('/download/:groupId', (req, res) => {
     res.sendFile(path.join(__dirname, 'download.html'));
 });
 
-app.post('/upload', upload.array('files', 10), (req, res) => {
-    const bundleId = crypto.randomBytes(8).toString('hex');
-    const fileList = req.files.map(file => ({
-        fileName: file.originalname,
-        fileSize: file.size,
-        uploadDate: new Date(),
-        path: file.path,
-        type: file.mimetype.startsWith('image/') ? 'image' : 'video'
-    }));
-    
-    bundles.set(bundleId, fileList);
-    res.json({ bundleId });
-});
+app.post('/upload', upload.array('files', 50), (req, res) => {
+    const groupId = crypto.randomBytes(8).toString('hex');
+    const uploadedFiles = [];
 
-app.get('/bundle-info/:bundleId', (req, res) => {
-    const bundleInfo = bundles.get(req.params.bundleId);
-    if (bundleInfo) {
-        res.json(bundleInfo);
-    } else {
-        res.status(404).json({ error: 'Bundle not found' });
-    }
-});
-
-app.get('/download-bundle/:bundleId', (req, res) => {
-    const bundleInfo = bundles.get(req.params.bundleId);
-    if (!bundleInfo) {
-        return res.status(404).send('Bundle not found');
-    }
-
-    const archive = archiver('zip', {
-        zlib: { level: 9 }
+    req.files.forEach(file => {
+        const fileId = path.parse(file.filename).name;
+        const fileInfo = {
+            fileId,
+            fileName: file.originalname,
+            fileSize: file.size,
+            uploadDate: new Date(),
+            path: file.path,
+            mimeType: file.mimetype
+        };
+        files.set(fileId, fileInfo);
+        uploadedFiles.push(fileInfo);
     });
 
-    const archivePath = path.join(__dirname, 'archives', `${req.params.bundleId}.zip`);
-    const output = fs.createWriteStream(archivePath);
+    groupUploads.set(groupId, uploadedFiles);
+    res.json({ groupId });
+});
+
+app.get('/group-info/:groupId', (req, res) => {
+    const groupFiles = groupUploads.get(req.params.groupId);
+    if (groupFiles) {
+        res.json(groupFiles);
+    } else {
+        res.status(404).json({ error: 'Files not found' });
+    }
+});
+
+app.get('/download-group/:groupId', (req, res) => {
+    const groupFiles = groupUploads.get(req.params.groupId);
+    if (!groupFiles) {
+        return res.status(404).send('Files not found');
+    }
+
+    if (groupFiles.length === 1) {
+        const fileInfo = groupFiles[0];
+        return res.download(fileInfo.path, fileInfo.fileName);
+    }
+
+    const zipFileName = `VarMax_Files_${req.params.groupId}.zip`;
+    const zipPath = path.join('./temp', zipFileName);
+    const output = fs.createWriteStream(zipPath);
+    const archive = archiver('zip', { zlib: { level: 9 } });
 
     output.on('close', () => {
-        res.download(archivePath, 'files.zip', () => {
-            fs.unlink(archivePath, err => {
-                if (err) console.error('Error deleting archive:', err);
+        res.download(zipPath, zipFileName, () => {
+            fs.unlink(zipPath, err => {
+                if (err) console.error('Error deleting temp zip:', err);
             });
         });
     });
 
     archive.on('error', err => {
-        res.status(500).send('Error creating archive');
+        res.status(500).send('Error creating zip file');
     });
 
     archive.pipe(output);
 
-    bundleInfo.forEach(file => {
-        archive.file(file.path, { name: file.fileName });
+    groupFiles.forEach(fileInfo => {
+        archive.file(fileInfo.path, { name: fileInfo.fileName });
     });
 
     archive.finalize();
 });
 
-app.get('/preview/:bundleId/:index', (req, res) => {
-    const bundleInfo = bundles.get(req.params.bundleId);
-    if (!bundleInfo || !bundleInfo[req.params.index]) {
-        return res.status(404).send('File not found');
+app.get('/download-file/:fileId', (req, res) => {
+    const fileInfo = files.get(req.params.fileId);
+    if (fileInfo) {
+        res.download(fileInfo.path, fileInfo.fileName);
+    } else {
+        res.status(404).send('File not found');
     }
-    const file = bundleInfo[req.params.index];
-    res.sendFile(path.resolve(file.path));
 });
-
-const cleanupUploads = () => {
-    const maxAge = 24 * 60 * 60 * 1000;
-    bundles.forEach((files, bundleId) => {
-        const oldestFile = files.reduce((oldest, file) => 
-            file.uploadDate < oldest ? file.uploadDate : oldest, 
-            new Date()
-        );
-        
-        if (Date.now() - oldestFile.getTime() > maxAge) {
-            files.forEach(file => {
-                fs.unlink(file.path, err => {
-                    if (err) console.error('Error deleting file:', err);
-                });
-            });
-            bundles.delete(bundleId);
-        }
-    });
-};
-
-setInterval(cleanupUploads, 60 * 60 * 1000);
 
 io.on('connection', socket => {
-    socket.on('disconnect', () => {});
+    socket.on('uploadProgress', data => {
+        socket.broadcast.emit('fileProgress', data);
+    });
 });
+
+const cleanupTask = setInterval(() => {
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    const now = new Date();
+
+    files.forEach((fileInfo, fileId) => {
+        if (now - fileInfo.uploadDate > twentyFourHours) {
+            fs.unlink(fileInfo.path, err => {
+                if (!err) {
+                    files.delete(fileId);
+                }
+            });
+        }
+    });
+
+    groupUploads.forEach((groupFiles, groupId) => {
+        if (now - groupFiles[0].uploadDate > twentyFourHours) {
+            groupUploads.delete(groupId);
+        }
+    });
+}, 60 * 60 * 1000);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

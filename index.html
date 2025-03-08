@@ -21,11 +21,10 @@
             flex-direction: column;
             align-items: center;
             padding: 20px;
-            position: relative;
         }
 
         .container {
-            max-width: 500px;
+            max-width: 800px;
             width: 100%;
             background: #2d2d2d;
             border-radius: 15px;
@@ -55,10 +54,6 @@
             cursor: pointer;
         }
 
-        .drop-zone:hover {
-            background: rgba(76, 175, 80, 0.1);
-        }
-
         .drop-zone.dragging {
             background: rgba(76, 175, 80, 0.2);
             border-color: #69f0ae;
@@ -85,10 +80,40 @@
             background: #45a049;
         }
 
-        .progress-container {
-            display: none;
+        .file-list {
             margin-top: 20px;
-            width: 100%;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: #404040;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .file-item .material-icons {
+            margin-right: 10px;
+        }
+
+        .file-item .file-name {
+            flex-grow: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-item .remove-btn {
+            color: #ff5252;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .progress-container {
+            margin-top: 20px;
         }
 
         .progress-bar {
@@ -113,12 +138,6 @@
             padding: 15px;
             border-radius: 8px;
             position: relative;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .url-container.show {
-            opacity: 1;
         }
 
         .url-input {
@@ -142,16 +161,27 @@
             color: #4CAF50;
             cursor: pointer;
             padding: 5px;
-            transition: color 0.3s ease;
         }
 
-        .copy-btn:hover {
-            color: #69f0ae;
+        .upload-btn {
+            background: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            margin-top: 20px;
+            width: 100%;
+            font-size: 16px;
+            display: none;
+        }
+
+        .upload-btn:hover {
+            background: #45a049;
         }
 
         .footer {
-            position: fixed;
-            bottom: 10px;
+            margin-top: 30px;
             color: #666;
             font-size: 12px;
             text-align: center;
@@ -179,11 +209,13 @@
         <h1>VarMax File Share</h1>
         <div class="drop-zone" id="dropZone">
             <span class="material-icons icon">cloud_upload</span>
-            <p>Drag & Drop your file here</p>
+            <p>Drag & Drop your files here</p>
             <div class="browse-button" id="browseButton">or Click to Browse</div>
-            <input type="file" id="fileInput" style="display: none;">
+            <input type="file" id="fileInput" style="display: none;" multiple accept="image/*,video/*">
         </div>
-        <div class="progress-container" id="progressContainer">
+        <div class="file-list" id="fileList"></div>
+        <button class="upload-btn" id="uploadButton">Upload Files</button>
+        <div class="progress-container" id="progressContainer" style="display: none;">
             <div class="progress-bar">
                 <div class="progress" id="progressBar"></div>
             </div>
@@ -201,43 +233,78 @@
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
         const browseButton = document.getElementById('browseButton');
+        const fileList = document.getElementById('fileList');
+        const uploadButton = document.getElementById('uploadButton');
         const progressContainer = document.getElementById('progressContainer');
         const progressBar = document.getElementById('progressBar');
         const urlContainer = document.getElementById('urlContainer');
         const urlInput = document.getElementById('urlInput');
         const copyBtn = document.getElementById('copyBtn');
 
-        browseButton.addEventListener('click', () => fileInput.click());
-        dropZone.addEventListener('dragover', (e) => {
+        let selectedFiles = new Set();
+
+        function updateFileList() {
+            fileList.innerHTML = '';
+            selectedFiles.forEach(file => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <span class="material-icons">${file.type.startsWith('image/') ? 'image' : 'videocam'}</span>
+                    <span class="file-name">${file.name}</span>
+                    <span class="material-icons remove-btn">close</span>
+                `;
+                fileItem.querySelector('.remove-btn').onclick = () => {
+                    selectedFiles.delete(file);
+                    updateFileList();
+                };
+                fileList.appendChild(fileItem);
+            });
+            uploadButton.style.display = selectedFiles.size > 0 ? 'block' : 'none';
+        }
+
+        function handleFiles(files) {
+            Array.from(files).forEach(file => {
+                if (file.size > 500 * 1024 * 1024) {
+                    alert(`${file.name} is too large. Maximum file size is 500MB`);
+                    return;
+                }
+                if (!file.type.match(/^(image|video)\//)) {
+                    alert(`${file.name} is not a valid image or video file`);
+                    return;
+                }
+                selectedFiles.add(file);
+            });
+            updateFileList();
+        }
+
+        browseButton.onclick = () => fileInput.click();
+        fileInput.onchange = e => handleFiles(e.target.files);
+
+        dropZone.ondragover = e => {
             e.preventDefault();
             dropZone.classList.add('dragging');
-        });
-        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragging'));
-        dropZone.addEventListener('drop', (e) => {
+        };
+
+        dropZone.ondragleave = () => dropZone.classList.remove('dragging');
+
+        dropZone.ondrop = e => {
             e.preventDefault();
             dropZone.classList.remove('dragging');
-            handleFile(e.dataTransfer.files[0]);
-        });
-        fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
+            handleFiles(e.dataTransfer.files);
+        };
 
-        function handleFile(file) {
-            if (!file) return;
-            if (file.size > 300 * 1024 * 1024) {
-                alert('File size must be less than 300MB');
-                return;
-            }
+        uploadButton.onclick = () => {
+            const formData = new FormData();
+            selectedFiles.forEach(file => formData.append('files', file));
 
             progressContainer.style.display = 'block';
             urlContainer.style.display = 'none';
             progressBar.style.width = '0%';
 
-            const formData = new FormData();
-            formData.append('file', file);
-
             const xhr = new XMLHttpRequest();
             xhr.open('POST', '/upload', true);
 
-            xhr.upload.onprogress = (e) => {
+            xhr.upload.onprogress = e => {
                 if (e.lengthComputable) {
                     const progress = (e.loaded / e.total) * 100;
                     progressBar.style.width = `${progress}%`;
@@ -247,11 +314,10 @@
             xhr.onload = () => {
                 if (xhr.status === 200) {
                     const response = JSON.parse(xhr.responseText);
-                    setTimeout(() => {
-                        urlContainer.style.display = 'block';
-                        urlInput.value = `${window.location.origin}/download/${response.fileId}`;
-                        requestAnimationFrame(() => urlContainer.classList.add('show'));
-                    }, 500);
+                    urlContainer.style.display = 'block';
+                    urlInput.value = `${window.location.origin}/download/${response.bundleId}`;
+                    selectedFiles.clear();
+                    updateFileList();
                 } else {
                     alert('Upload failed. Please try again.');
                 }
@@ -259,14 +325,14 @@
 
             xhr.onerror = () => alert('Upload failed. Please try again.');
             xhr.send(formData);
-        }
+        };
 
-        copyBtn.addEventListener('click', () => {
+        copyBtn.onclick = () => {
             urlInput.select();
             document.execCommand('copy');
             copyBtn.textContent = 'check';
             setTimeout(() => copyBtn.textContent = 'content_copy', 2000);
-        });
+        };
     </script>
 </body>
 </html>

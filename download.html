@@ -191,13 +191,43 @@
             width: 0%;
             height: 100%;
             background: linear-gradient(90deg, var(--primary), var(--primary-light));
+            transition: width 0.3s ease;
             position: relative;
-            animation: progressAnimation 2s linear infinite;
         }
 
-        @keyframes progressAnimation {
+        .progress::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
             0% { transform: translateX(-100%); }
             100% { transform: translateX(100%); }
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            color: var(--text-secondary);
+        }
+
+        .status-message {
+            margin-top: 10px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.9em;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .status-message.show {
+            opacity: 1;
         }
 
         .footer {
@@ -281,79 +311,75 @@
             <div class="progress-bar">
                 <div class="progress" id="progressBar"></div>
             </div>
+            <div class="status-message" id="statusMessage"></div>
         </div>
     </div>
     <div class="footer">VarMax Pro By NZ R</div>
 
-    <script src="/socket.io/socket.io.js"></script>
     <script>
-        const socket = io();
-        const groupId = window.location.pathname.split('/').pop();
-        const fileList = document.getElementById('fileList');
         const downloadBtn = document.getElementById('downloadBtn');
         const downloadProgress = document.getElementById('downloadProgress');
+        const progressBar = document.getElementById('progressBar');
+        const statusMessage = document.getElementById('statusMessage');
 
-        function formatSize(bytes) {
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            if (bytes === 0) return '0 Bytes';
-            const i = Math.floor(Math.log(bytes) / Math.log(1024));
-            return Math.round(bytes / Math.pow(1024, i)) + ' ' + sizes[i];
+        function updateProgress(width) {
+            progressBar.style.width = width + '%';
         }
 
-        function getFileIcon(mimeType) {
-            if (mimeType.startsWith('image/')) return 'image';
-            if (mimeType.startsWith('video/')) return 'videocam';
-            if (mimeType.startsWith('audio/')) return 'audiotrack';
-            if (mimeType.includes('pdf')) return 'picture_as_pdf';
-            if (mimeType.includes('zip') || mimeType.includes('rar')) return 'folder_zip';
-            return 'insert_drive_file';
+        function showMessage(message) {
+            statusMessage.textContent = message;
+            statusMessage.classList.add('show');
         }
-
-        fetch(`/group-info/${groupId}`)
-            .then(response => response.json())
-            .then(files => {
-                files.forEach(file => {
-                    const fileItem = document.createElement('div');
-                    fileItem.className = 'file-item';
-                    fileItem.innerHTML = `
-                        <span class="material-icons file-icon">${getFileIcon(file.mimeType)}</span>
-                        <div class="file-details">
-                            <div class="file-name">${file.fileName}</div>
-                            <div class="file-info">
-                                <span class="info-item">
-                                    <span class="material-icons">storage</span>
-                                    ${formatSize(file.fileSize)}
-                                </span>
-                                <span class="info-item">
-                                    <span class="material-icons">schedule</span>
-                                    ${new Date(file.uploadDate).toLocaleString()}
-                                </span>
-                            </div>
-                        </div>
-                    `;
-                    fileList.appendChild(fileItem);
-                });
-
-                document.title = `Download ${files.length > 1 ? 'Files' : files[0].fileName} - VarMax Pro`;
-            });
 
         downloadBtn.addEventListener('click', () => {
             downloadProgress.style.display = 'block';
-            fetch(`/download-group/${groupId}`)
-                .then(response => response.blob())
-                .then(blob => {
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = `VarMax_Files_${groupId}.zip`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    setTimeout(() => {
-                        downloadProgress.style.display = 'none';
-                    }, 3000);
-                });
+            let progress = 0;
+            
+            const interval = setInterval(() => {
+                if (progress < 100) {
+                    progress += Math.random() * 2;
+                    if (progress > 100) progress = 100;
+                    updateProgress(progress);
+
+                    if (progress > 30 && progress < 40) {
+                        showMessage('Preparing files...');
+                    } else if (progress > 60 && progress < 70) {
+                        showMessage('Almost there...');
+                    } else if (progress === 100) {
+                        showMessage('Download complete!');
+                        clearInterval(interval);
+                    }
+                }
+            }, 100);
+        });
+
+        const fileTypes = [
+            { name: 'Project Report.pdf', size: '2.5 MB', type: 'picture_as_pdf' },
+            { name: 'Presentation.pptx', size: '5.8 MB', type: 'insert_drive_file' },
+            { name: 'Data Analysis.xlsx', size: '1.2 MB', type: 'insert_drive_file' }
+        ];
+
+        const fileList = document.getElementById('fileList');
+        fileTypes.forEach(file => {
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            fileItem.innerHTML = `
+                <span class="material-icons file-icon">${file.type}</span>
+                <div class="file-details">
+                    <div class="file-name">${file.name}</div>
+                    <div class="file-info">
+                        <span class="info-item">
+                            <span class="material-icons">storage</span>
+                            ${file.size}
+                        </span>
+                        <span class="info-item">
+                            <span class="material-icons">schedule</span>
+                            ${new Date().toLocaleDateString()}
+                        </span>
+                    </div>
+                </div>
+            `;
+            fileList.appendChild(fileItem);
         });
     </script>
 </body>

@@ -93,7 +93,7 @@
             background: rgba(0, 0, 0, 0.3);
         }
 
-        .file-preview {
+        .file-thumbnail {
             width: 100px;
             height: 100px;
             border-radius: 8px;
@@ -103,13 +103,13 @@
             flex-shrink: 0;
         }
 
-        .file-preview img, .file-preview video {
+        .file-thumbnail img {
             width: 100%;
             height: 100%;
             object-fit: cover;
         }
 
-        .file-preview .material-icons {
+        .file-thumbnail .material-icons {
             position: absolute;
             top: 50%;
             left: 50%;
@@ -144,12 +144,7 @@
             gap: 5px;
         }
 
-        .button-group {
-            display: flex;
-            gap: 10px;
-        }
-
-        .btn {
+        .download-btn {
             padding: 8px 16px;
             border-radius: 8px;
             border: none;
@@ -159,21 +154,14 @@
             gap: 8px;
             font-weight: 500;
             transition: all 0.3s ease;
-        }
-
-        .download-btn {
             background: var(--primary);
             color: white;
         }
 
-        .preview-btn {
-            background: var(--surface);
-            color: var(--text);
-        }
-
-        .btn:hover {
+        .download-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            background: var(--primary-dark);
         }
 
         .progress-bar {
@@ -212,41 +200,10 @@
             box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
         }
 
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.9);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal-content {
-            max-width: 90%;
-            max-height: 90vh;
-            position: relative;
-        }
-
-        .modal-content img, .modal-content video {
-            max-width: 100%;
-            max-height: 90vh;
-            border-radius: 8px;
-        }
-
-        .close-modal {
-            position: absolute;
-            top: -40px;
-            right: -40px;
-            color: white;
-            font-size: 30px;
-            cursor: pointer;
-            background: none;
-            border: none;
-            padding: 10px;
+        .download-all-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
         }
 
         .file-type-badge {
@@ -272,7 +229,7 @@
                 text-align: center;
             }
 
-            .file-preview {
+            .file-thumbnail {
                 width: 150px;
                 height: 150px;
             }
@@ -281,18 +238,6 @@
                 flex-direction: column;
                 gap: 10px;
                 align-items: center;
-            }
-
-            .button-group {
-                justify-content: center;
-            }
-
-            .modal-content {
-                width: 95%;
-            }
-
-            .close-modal {
-                right: 0;
             }
         }
     </style>
@@ -312,11 +257,6 @@
             <span class="material-icons">download_all</span>
             Download All Files
         </button>
-    </div>
-
-    <div class="modal" id="previewModal">
-        <button class="close-modal material-icons">close</button>
-        <div class="modal-content" id="modalContent"></div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -342,27 +282,11 @@
             return 'insert_drive_file';
         }
 
-        function createPreviewElement(file) {
-            if (file.mimeType.startsWith('image/')) {
-                return `<img src="/preview/${file.fileId}" alt="${file.fileName}">`;
-            } else if (file.mimeType.startsWith('video/')) {
-                return `<video src="/preview/${file.fileId}" controls></video>`;
-            } else {
-                return `<span class="material-icons">${getFileIcon(file.mimeType)}</span>`;
+        function createThumbnailElement(file) {
+            if (file.thumbnailPath) {
+                return `<img src="/thumbnails/${file.fileId}.jpg" alt="${file.fileName}">`;
             }
-        }
-
-        function showPreview(file) {
-            const modal = document.getElementById('previewModal');
-            const modalContent = document.getElementById('modalContent');
-            
-            if (file.mimeType.startsWith('image/')) {
-                modalContent.innerHTML = `<img src="/preview/${file.fileId}" alt="${file.fileName}">`;
-                modal.style.display = 'flex';
-            } else if (file.mimeType.startsWith('video/')) {
-                modalContent.innerHTML = `<video src="/preview/${file.fileId}" controls autoplay></video>`;
-                modal.style.display = 'flex';
-            }
+            return `<span class="material-icons">${getFileIcon(file.mimeType)}</span>`;
         }
 
         async function downloadFile(fileId, fileName) {
@@ -406,22 +330,16 @@
             }
         }
 
-        document.querySelector('.close-modal').addEventListener('click', () => {
-            document.getElementById('previewModal').style.display = 'none';
-            document.getElementById('modalContent').innerHTML = '';
-        });
-
         fetch(`/group-info/${groupId}`)
             .then(response => response.json())
             .then(files => {
                 filesData = files;
                 files.forEach(file => {
-                    const canPreview = file.mimeType.startsWith('image/') || file.mimeType.startsWith('video/');
                     const fileItem = document.createElement('div');
                     fileItem.className = 'file-item';
                     fileItem.innerHTML = `
-                        <div class="file-preview">
-                            ${createPreviewElement(file)}
+                        <div class="file-thumbnail">
+                            ${createThumbnailElement(file)}
                             <div class="file-type-badge">${file.mimeType.split('/')[0]}</div>
                         </div>
                         <div class="file-details">
@@ -436,18 +354,10 @@
                                     ${new Date(file.uploadDate).toLocaleString()}
                                 </span>
                             </div>
-                            <div class="button-group">
-                                <button class="btn download-btn" onclick="downloadFile('${file.fileId}', '${file.fileName}')">
-                                    <span class="material-icons">download</span>
-                                    Download
-                                </button>
-                                ${canPreview ? `
-                                    <button class="btn preview-btn" onclick="showPreview(${JSON.stringify(file)})">
-                                        <span class="material-icons">visibility</span>
-                                        Preview
-                                    </button>
-                                ` : ''}
-                            </div>
+                            <button class="download-btn" onclick="downloadFile('${file.fileId}', '${file.fileName}')">
+                                <span class="material-icons">download</span>
+                                Download
+                            </button>
                             <div class="progress-bar" id="progress-${file.fileId}">
                                 <div class="progress"></div>
                             </div>

@@ -191,35 +191,13 @@
             width: 0%;
             height: 100%;
             background: linear-gradient(90deg, var(--primary), var(--primary-light));
-            transition: width 0.3s ease;
             position: relative;
+            animation: progressAnimation 2s linear infinite;
         }
 
-        .progress::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(
-                90deg,
-                transparent,
-                rgba(255, 255, 255, 0.2),
-                transparent
-            );
-            animation: shimmer 1.5s infinite;
-        }
-
-        @keyframes shimmer {
+        @keyframes progressAnimation {
             0% { transform: translateX(-100%); }
             100% { transform: translateX(100%); }
-        }
-
-        .progress-text {
-            text-align: center;
-            margin-top: 10px;
-            color: var(--text-secondary);
         }
 
         .footer {
@@ -303,7 +281,6 @@
             <div class="progress-bar">
                 <div class="progress" id="progressBar"></div>
             </div>
-            <div class="progress-text" id="progressText">Preparing download...</div>
         </div>
     </div>
     <div class="footer">VarMax Pro By NZ R</div>
@@ -315,8 +292,6 @@
         const fileList = document.getElementById('fileList');
         const downloadBtn = document.getElementById('downloadBtn');
         const downloadProgress = document.getElementById('downloadProgress');
-        const progressBar = document.getElementById('progressBar');
-        const progressText = document.getElementById('progressText');
 
         function formatSize(bytes) {
             const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -360,44 +335,11 @@
                 });
 
                 document.title = `Download ${files.length > 1 ? 'Files' : files[0].fileName} - VarMax Pro`;
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Failed to load file information');
             });
 
         downloadBtn.addEventListener('click', () => {
             downloadProgress.style.display = 'block';
-            progressBar.style.width = '0%';
-            progressText.textContent = 'Starting download...';
-
             fetch(`/download-group/${groupId}`)
-                .then(response => {
-                    const reader = response.body.getReader();
-                    const contentLength = +response.headers.get('Content-Length');
-                    let receivedLength = 0;
-
-                    return new ReadableStream({
-                        start(controller) {
-                            function push() {
-                                reader.read().then(({done, value}) => {
-                                    if (done) {
-                                        controller.close();
-                                        return;
-                                    }
-                                    receivedLength += value.length;
-                                    const percentage = (receivedLength / contentLength) * 100;
-                                    progressBar.style.width = percentage + '%';
-                                    progressText.textContent = `Downloading... ${Math.round(percentage)}%`;
-                                    controller.enqueue(value);
-                                    push();
-                                });
-                            }
-                            push();
-                        }
-                    });
-                })
-                .then(stream => new Response(stream))
                 .then(response => response.blob())
                 .then(blob => {
                     const url = window.URL.createObjectURL(blob);
@@ -408,20 +350,10 @@
                     document.body.appendChild(a);
                     a.click();
                     window.URL.revokeObjectURL(url);
-                    progressBar.style.width = '100%';
-                    progressText.textContent = 'Download complete!';
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    progressText.textContent = 'Download failed. Please try again.';
+                    setTimeout(() => {
+                        downloadProgress.style.display = 'none';
+                    }, 3000);
                 });
-        });
-
-        socket.on('downloadProgress', (data) => {
-            if (data.groupId === groupId) {
-                progressBar.style.width = data.percentage + '⬇️';
-                progressText.textContent = `Downloading.....`;
-            }
         });
     </script>
 </body>

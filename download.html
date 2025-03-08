@@ -23,6 +23,8 @@
             --surface-light: #404040;
             --text: #ffffff;
             --text-secondary: rgba(255,255,255,0.7);
+            --error: #ff5252;
+            --success: #4caf50;
         }
 
         body {
@@ -36,7 +38,7 @@
         }
 
         .container {
-            max-width: 800px;
+            max-width: 900px;
             width: 100%;
             background: rgba(45, 45, 45, 0.95);
             border-radius: 20px;
@@ -44,12 +46,6 @@
             margin-top: 50px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.3);
             backdrop-filter: blur(10px);
-            animation: slideUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        @keyframes slideUp {
-            from { transform: translateY(40px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
         }
 
         .header {
@@ -57,18 +53,7 @@
             margin-bottom: 40px;
             position: relative;
             padding-bottom: 20px;
-        }
-
-        .header::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 100px;
-            height: 4px;
-            background: linear-gradient(90deg, var(--primary), var(--primary-light));
-            border-radius: 2px;
+            border-bottom: 2px solid var(--primary);
         }
 
         h1 {
@@ -87,7 +72,7 @@
         }
 
         .file-list {
-            max-height: 400px;
+            max-height: 600px;
             overflow-y: auto;
             padding-right: 10px;
         }
@@ -108,9 +93,29 @@
             background: rgba(0, 0, 0, 0.3);
         }
 
-        .file-icon {
-            color: var(--primary);
-            font-size: 32px;
+        .file-preview {
+            width: 100px;
+            height: 100px;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            background: var(--surface);
+            flex-shrink: 0;
+        }
+
+        .file-preview img, .file-preview video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .file-preview .material-icons {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            color: var(--text-secondary);
         }
 
         .file-details {
@@ -119,9 +124,10 @@
 
         .file-name {
             font-weight: 500;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
             color: var(--text);
             word-break: break-all;
+            font-size: 1.1em;
         }
 
         .file-info {
@@ -129,24 +135,45 @@
             gap: 20px;
             color: var(--text-secondary);
             font-size: 0.9em;
+            margin-bottom: 12px;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+            transition: all 0.3s ease;
         }
 
         .download-btn {
             background: var(--primary);
             color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
         }
 
-        .download-btn:hover {
-            background: var(--primary-dark);
+        .preview-btn {
+            background: var(--surface);
+            color: var(--text);
+        }
+
+        .btn:hover {
             transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
 
         .progress-bar {
@@ -185,16 +212,53 @@
             box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
         }
 
-        .download-all-btn:hover {
-            background: var(--primary-dark);
-            transform: translateY(-2px);
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
         }
 
-        .footer {
-            margin-top: 30px;
-            color: var(--text-secondary);
-            font-size: 12px;
-            text-align: center;
+        .modal-content {
+            max-width: 90%;
+            max-height: 90vh;
+            position: relative;
+        }
+
+        .modal-content img, .modal-content video {
+            max-width: 100%;
+            max-height: 90vh;
+            border-radius: 8px;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: -40px;
+            right: -40px;
+            color: white;
+            font-size: 30px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 10px;
+        }
+
+        .file-type-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: var(--primary);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            text-transform: uppercase;
         }
 
         @media (max-width: 768px) {
@@ -208,9 +272,27 @@
                 text-align: center;
             }
 
+            .file-preview {
+                width: 150px;
+                height: 150px;
+            }
+
             .file-info {
                 flex-direction: column;
                 gap: 10px;
+                align-items: center;
+            }
+
+            .button-group {
+                justify-content: center;
+            }
+
+            .modal-content {
+                width: 95%;
+            }
+
+            .close-modal {
+                right: 0;
             }
         }
     </style>
@@ -231,14 +313,16 @@
             Download All Files
         </button>
     </div>
-    <div class="footer">VarMax Pro By NZ R</div>
+
+    <div class="modal" id="previewModal">
+        <button class="close-modal material-icons">close</button>
+        <div class="modal-content" id="modalContent"></div>
+    </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
         const groupId = window.location.pathname.split('/').pop();
-        const fileList = document.getElementById('fileList');
-        const downloadAllBtn = document.getElementById('downloadAllBtn');
         let filesData = [];
 
         function formatSize(bytes) {
@@ -254,7 +338,31 @@
             if (mimeType.startsWith('audio/')) return 'audiotrack';
             if (mimeType.includes('pdf')) return 'picture_as_pdf';
             if (mimeType.includes('zip') || mimeType.includes('rar')) return 'folder_zip';
+            if (mimeType.includes('apk')) return 'android';
             return 'insert_drive_file';
+        }
+
+        function createPreviewElement(file) {
+            if (file.mimeType.startsWith('image/')) {
+                return `<img src="/preview/${file.fileId}" alt="${file.fileName}">`;
+            } else if (file.mimeType.startsWith('video/')) {
+                return `<video src="/preview/${file.fileId}" controls></video>`;
+            } else {
+                return `<span class="material-icons">${getFileIcon(file.mimeType)}</span>`;
+            }
+        }
+
+        function showPreview(file) {
+            const modal = document.getElementById('previewModal');
+            const modalContent = document.getElementById('modalContent');
+            
+            if (file.mimeType.startsWith('image/')) {
+                modalContent.innerHTML = `<img src="/preview/${file.fileId}" alt="${file.fileName}">`;
+                modal.style.display = 'flex';
+            } else if (file.mimeType.startsWith('video/')) {
+                modalContent.innerHTML = `<video src="/preview/${file.fileId}" controls autoplay></video>`;
+                modal.style.display = 'flex';
+            }
         }
 
         async function downloadFile(fileId, fileName) {
@@ -271,9 +379,7 @@
 
                 while(true) {
                     const {done, value} = await reader.read();
-                    
                     if (done) break;
-                    
                     chunks.push(value);
                     receivedLength += value.length;
                     const progress = (receivedLength / contentLength) * 100;
@@ -300,28 +406,52 @@
             }
         }
 
+        document.querySelector('.close-modal').addEventListener('click', () => {
+            document.getElementById('previewModal').style.display = 'none';
+            document.getElementById('modalContent').innerHTML = '';
+        });
+
         fetch(`/group-info/${groupId}`)
             .then(response => response.json())
             .then(files => {
                 filesData = files;
                 files.forEach(file => {
+                    const canPreview = file.mimeType.startsWith('image/') || file.mimeType.startsWith('video/');
                     const fileItem = document.createElement('div');
                     fileItem.className = 'file-item';
                     fileItem.innerHTML = `
-                        <span class="material-icons file-icon">${getFileIcon(file.mimeType)}</span>
+                        <div class="file-preview">
+                            ${createPreviewElement(file)}
+                            <div class="file-type-badge">${file.mimeType.split('/')[0]}</div>
+                        </div>
                         <div class="file-details">
                             <div class="file-name">${file.fileName}</div>
                             <div class="file-info">
-                                <span>${formatSize(file.fileSize)}</span>
-                                <span>${new Date(file.uploadDate).toLocaleString()}</span>
+                                <span class="info-item">
+                                    <span class="material-icons">storage</span>
+                                    ${formatSize(file.fileSize)}
+                                </span>
+                                <span class="info-item">
+                                    <span class="material-icons">schedule</span>
+                                    ${new Date(file.uploadDate).toLocaleString()}
+                                </span>
+                            </div>
+                            <div class="button-group">
+                                <button class="btn download-btn" onclick="downloadFile('${file.fileId}', '${file.fileName}')">
+                                    <span class="material-icons">download</span>
+                                    Download
+                                </button>
+                                ${canPreview ? `
+                                    <button class="btn preview-btn" onclick="showPreview(${JSON.stringify(file)})">
+                                        <span class="material-icons">visibility</span>
+                                        Preview
+                                    </button>
+                                ` : ''}
                             </div>
                             <div class="progress-bar" id="progress-${file.fileId}">
                                 <div class="progress"></div>
                             </div>
                         </div>
-                        <button class="download-btn" onclick="downloadFile('${file.fileId}', '${file.fileName}')">
-                            <span class="material-icons">download</span>
-                        </button>
                     `;
                     fileList.appendChild(fileItem);
                 });
@@ -331,7 +461,7 @@
                 alert('Failed to load file information');
             });
 
-        downloadAllBtn.addEventListener('click', downloadAllFiles);
+        document.getElementById('downloadAllBtn').addEventListener('click', downloadAllFiles);
 
         socket.on('fileProgress', (data) => {
             const progressBar = document.querySelector(`#progress-${data.fileId}`);

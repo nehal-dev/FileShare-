@@ -25,6 +25,8 @@
             --text-secondary: rgba(255,255,255,0.7);
             --error: #ff5252;
             --success: #4caf50;
+            --warning: #ffc107;
+            --info: #2196f3;
         }
 
         body {
@@ -101,6 +103,8 @@
             align-items: center;
             gap: 20px;
             transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
 
         .file-item:hover {
@@ -180,13 +184,22 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
 
+        .download-btn:disabled {
+            background: var(--surface);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress-container {
+            margin-top: 10px;
+            display: none;
+        }
+
         .progress-bar {
             height: 6px;
             background: var(--surface);
             border-radius: 3px;
             overflow: hidden;
-            margin-top: 10px;
-            display: none;
         }
 
         .progress {
@@ -194,6 +207,19 @@
             height: 100%;
             background: linear-gradient(90deg, var(--primary), var(--primary-light));
             transition: width 0.3s ease;
+        }
+
+        .status-message {
+            color: var(--text-secondary);
+            font-size: 0.85em;
+            margin-top: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-message .material-icons {
+            font-size: 16px;
         }
 
         .download-all-btn {
@@ -221,6 +247,12 @@
             box-shadow: 0 6px 15px rgba(76, 175, 80, 0.3);
         }
 
+        .download-all-btn:disabled {
+            background: var(--surface);
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .file-type-badge {
             position: absolute;
             top: 8px;
@@ -241,6 +273,45 @@
             padding: 15px;
             letter-spacing: 0.5px;
         }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            border-radius: 10px;
+        }
+
+        .loading-spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid var(--text-secondary);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .status-icon {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .status-icon.checking { background: var(--warning); }
+        .status-icon.downloading { background: var(--info); }
+        .status-icon.complete { background: var(--success); }
+        .status-icon.error { background: var(--error); }
 
         @media (max-width: 768px) {
             .container {
@@ -305,6 +376,39 @@
         const groupId = window.location.pathname.split('/').pop();
         let filesData = [];
 
+        const downloadMessages = {
+            checking: [
+                "Checking internet connection...",
+                "Verifying file integrity...",
+                "Preparing download resources...",
+                "Initializing secure connection...",
+                "Checking server availability...",
+                "Analyzing file structure...",
+                "Validating download parameters...",
+                "Setting up download environment..."
+            ],
+            downloading: [
+                "Starting download process...",
+                "Establishing secure connection...",
+                "Downloading file chunks...",
+                "Processing data segments...",
+                "Retrieving file contents...",
+                "Transferring data blocks...",
+                "Download in progress...",
+                "Receiving file data..."
+            ],
+            finalizing: [
+                "Finalizing download...",
+                "Verifying downloaded content...",
+                "Assembling file parts...",
+                "Checking file completion...",
+                "Preparing file for saving...",
+                "Validating file integrity...",
+                "Processing final segments...",
+                "Completing download process..."
+            ]
+        };
+
         function formatSize(bytes) {
             const sizes = ['Bytes', 'KB', 'MB', 'GB'];
             if (bytes === 0) return '0 Bytes';
@@ -329,11 +433,55 @@
             return `<span class="material-icons">${getFileIcon(file.mimeType)}</span>`;
         }
 
-        async function downloadFile(fileId, fileName) {
-            const progressBar = document.querySelector(`#progress-${fileId}`);
-            progressBar.style.display = 'block';
+        function updateStatusMessage(fileId, phase, progress = 0) {
+            const statusElement = document.querySelector(`#status-${fileId}`);
+            const messages = downloadMessages[phase];
+            const messageIndex = Math.floor((progress / 100) * (messages.length - 1));
+            const message = messages[Math.min(messageIndex, messages.length - 1)];
             
+            let statusIcon = '';
+            switch(phase) {
+                case 'checking':
+                    statusIcon = '<span class="status-icon checking"></span>';
+                    break;
+                case 'downloading':
+                    statusIcon = '<span class="status-icon downloading"></span>';
+                    break;
+                case 'finalizing':
+                    statusIcon = '<span class="status-icon downloading"></span>';
+                    break;
+                case 'complete':
+                    statusIcon = '<span class="status-icon complete"></span>';
+                    break;
+                case 'error':
+                    statusIcon = '<span class="status-icon error"></span>';
+                    break;
+            }
+            
+            statusElement.innerHTML = `${statusIcon}${message}`;
+        }
+
+        async function simulateDownloadPhase(fileId, phase, duration) {
+            const steps = 20;
+            const interval = duration / steps;
+            for (let i = 0; i <= steps; i++) {
+                const progress = (i / steps) * 100;
+                updateStatusMessage(fileId, phase, progress);
+                await new Promise(resolve => setTimeout(resolve, interval));
+            }
+        }
+
+        async function downloadFile(fileId, fileName) {
+            const progressContainer = document.querySelector(`#progress-container-${fileId}`);
+            const progressBar = document.querySelector(`#progress-${fileId}`);
+            const downloadBtn = document.querySelector(`#download-btn-${fileId}`);
+            
+            progressContainer.style.display = 'block';
+            downloadBtn.disabled = true;
+
             try {
+                await simulateDownloadPhase(fileId, 'checking', 2000);
+                
                 const response = await fetch(`/download-file/${fileId}`);
                 const reader = response.body.getReader();
                 const contentLength = +response.headers.get('Content-Length');
@@ -344,11 +492,16 @@
                 while(true) {
                     const {done, value} = await reader.read();
                     if (done) break;
+                    
                     chunks.push(value);
                     receivedLength += value.length;
                     const progress = (receivedLength / contentLength) * 100;
+                    
                     progressBar.querySelector('.progress').style.width = `${progress}%`;
+                    updateStatusMessage(fileId, 'downloading', progress);
                 }
+
+                await simulateDownloadPhase(fileId, 'finalizing', 1500);
 
                 const blob = new Blob(chunks);
                 const url = URL.createObjectURL(blob);
@@ -359,15 +512,26 @@
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
+
+                updateStatusMessage(fileId, 'complete');
+                progressBar.querySelector('.progress').style.width = '100%';
             } catch (error) {
                 console.error('Download failed:', error);
+                updateStatusMessage(fileId, 'error');
+            } finally {
+                downloadBtn.disabled = false;
             }
         }
 
         async function downloadAllFiles() {
+            const downloadAllBtn = document.getElementById('downloadAllBtn');
+            downloadAllBtn.disabled = true;
+            
             for (const file of filesData) {
                 await downloadFile(file.fileId, file.fileName);
             }
+            
+            downloadAllBtn.disabled = false;
         }
 
         fetch(`/group-info/${groupId}`)
@@ -394,12 +558,15 @@
                                     ${new Date(file.uploadDate).toLocaleString()}
                                 </span>
                             </div>
-                            <button class="download-btn" onclick="downloadFile('${file.fileId}', '${file.fileName}')">
+                            <button class="download-btn" id="download-btn-${file.fileId}" onclick="downloadFile('${file.fileId}', '${file.fileName}')">
                                 <span class="material-icons">download</span>
                                 Download
                             </button>
-                            <div class="progress-bar" id="progress-${file.fileId}">
-                                <div class="progress"></div>
+                            <div class="progress-container" id="progress-container-${file.fileId}">
+                                <div class="progress-bar" id="progress-${file.fileId}">
+                                    <div class="progress"></div>
+                                </div>
+                                <div class="status-message" id="status-${file.fileId}"></div>
                             </div>
                         </div>
                     `;
@@ -422,3 +589,4 @@
     </script>
 </body>
 </html>
+    

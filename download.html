@@ -47,11 +47,6 @@
             animation: slideUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        @keyframes slideUp {
-            from { transform: translateY(40px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-
         .header {
             text-align: center;
             margin-bottom: 40px;
@@ -84,7 +79,6 @@
             border-radius: 15px;
             padding: 30px;
             margin-bottom: 30px;
-            animation: fadeIn 0.6s ease-out 0.3s both;
         }
 
         .file-list {
@@ -101,7 +95,7 @@
             display: flex;
             align-items: center;
             gap: 20px;
-            transition: transform 0.3s ease;
+            transition: all 0.3s ease;
         }
 
         .file-item:hover {
@@ -138,11 +132,6 @@
             gap: 5px;
         }
 
-        .info-item .material-icons {
-            font-size: 16px;
-            color: var(--primary);
-        }
-
         .download-btn {
             width: 100%;
             padding: 20px;
@@ -161,17 +150,12 @@
             letter-spacing: 1px;
             font-weight: 500;
             box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
-            animation: fadeIn 0.6s ease-out 0.6s both;
         }
 
         .download-btn:hover {
             background: var(--primary-dark);
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
-        }
-
-        .download-btn .icon {
-            font-size: 24px;
         }
 
         .download-progress {
@@ -184,7 +168,6 @@
             background: var(--surface);
             border-radius: 5px;
             overflow: hidden;
-            position: relative;
         }
 
         .progress {
@@ -202,18 +185,8 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(
-                90deg,
-                transparent,
-                rgba(255, 255, 255, 0.2),
-                transparent
-            );
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
             animation: shimmer 1.5s infinite;
-        }
-
-        @keyframes shimmer {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(100%); }
         }
 
         .progress-text {
@@ -230,55 +203,30 @@
             letter-spacing: 1px;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+        @keyframes slideUp {
+            from { transform: translateY(40px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
         }
 
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--primary);
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--primary-dark);
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
         }
 
         @media (max-width: 768px) {
             .container {
-                padding: 30px;
-                margin-top: 30px;
-            }
-
-            h1 {
-                font-size: 2em;
+                padding: 20px;
+                margin-top: 20px;
             }
 
             .file-item {
-                padding: 15px;
                 flex-direction: column;
                 text-align: center;
-                gap: 10px;
             }
 
             .file-info {
                 flex-direction: column;
-                gap: 10px;
                 align-items: center;
-            }
-
-            .download-btn {
-                padding: 15px;
-                font-size: 16px;
             }
         }
     </style>
@@ -295,7 +243,7 @@
         </div>
 
         <button class="download-btn" id="downloadBtn">
-            <span class="material-icons icon">download</span>
+            <span class="material-icons">download</span>
             Download All Files
         </button>
 
@@ -308,7 +256,9 @@
     </div>
     <div class="footer">VarMax Pro By NZ R</div>
 
+    <script src="/socket.io/socket.io.js"></script>
     <script>
+        const socket = io();
         const groupId = window.location.pathname.split('/').pop();
         const fileList = document.getElementById('fileList');
         const downloadBtn = document.getElementById('downloadBtn');
@@ -332,7 +282,12 @@
             return 'insert_drive_file';
         }
 
-        fetch(`/group-info/${groupId}`)
+        socket.on('downloadProgress', (progress) => {
+            progressBar.style.width = `${progress}%`;
+            progressText.textContent = `Downloading: ${progress}%`;
+        });
+
+        fetch(`/api/files/${groupId}`)
             .then(response => response.json())
             .then(files => {
                 files.forEach(file => {
@@ -345,7 +300,7 @@
                             <div class="file-info">
                                 <span class="info-item">
                                     <span class="material-icons">storage</span>
-                                    ${formatSize(file.fileSize)}
+                                    ${formatSize(file.size)}
                                 </span>
                                 <span class="info-item">
                                     <span class="material-icons">schedule</span>
@@ -356,42 +311,30 @@
                     `;
                     fileList.appendChild(fileItem);
                 });
-
-                document.title = `Download ${files.length > 1 ? 'Files' : files[0].fileName} - VarMax Pro`;
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Failed to load file information');
             });
 
-        downloadBtn.addEventListener('click', () => {
+        downloadBtn.addEventListener('click', async () => {
             downloadProgress.style.display = 'block';
             progressBar.style.width = '0%';
             progressText.textContent = 'Starting download...';
 
-            const downloadUrl = `/download-group/${groupId}`;
-            
-            fetch(downloadUrl)
-                .then(response => {
-                    if (!response.ok) throw new Error('Download failed');
-                    return response.blob();
-                })
-                .then(blob => {
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = `VarMax_Files_${groupId}.zip`;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    progressBar.style.width = '100%';
-                    progressText.textContent = 'Download complete!';
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    progressText.textContent = 'Download failed. Please try again.';
-                });
+            try {
+                const response = await fetch(`/api/download/${groupId}`);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `VarMax_Files_${groupId}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                progressBar.style.width = '100%';
+                progressText.textContent = 'Download complete!';
+            } catch (error) {
+                progressText.textContent = 'Download failed. Please try again.';
+            }
         });
     </script>
 </body>

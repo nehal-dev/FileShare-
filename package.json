@@ -9,9 +9,7 @@
     "test": "jest",
     "lint": "eslint .",
     "build": "webpack --mode production",
-    "clean": "rimraf dist",
-    "security-check": "snyk test",
-    "monitor": "nodemon --exec 'node -r dotenv/config' index.js"
+    "clean": "rimraf dist"
   },
   "engines": {
     "node": ">=16.0.0"
@@ -36,10 +34,6 @@
     "helmet": "^6.1.5",
     "multer": "^1.4.5-lts.1",
     "socket.io": "^4.6.1",
-    "stream": "^0.0.2",
-    "zlib": "^1.0.5",
-    "cluster": "^0.7.7",
-    "crypto": "^1.0.1",
     "fs-extra": "^11.1.1",
     "mime-types": "^2.1.35",
     "moment": "^2.29.4",
@@ -57,19 +51,8 @@
     "nodemon": "^2.0.22",
     "prettier": "^2.8.7",
     "rimraf": "^4.4.1",
-    "snyk": "^1.1130.0",
-    "supertest": "^6.3.3",
     "webpack": "^5.79.0",
     "webpack-cli": "^5.0.1"
-  },
-  "optionalDependencies": {
-    "bufferutil": "^4.0.7",
-    "utf-8-validate": "^6.0.3"
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "coverageDirectory": "./coverage",
-    "collectCoverage": true
   },
   "nodemonConfig": {
     "ignore": [
@@ -79,26 +62,5 @@
       "dist/*"
     ],
     "delay": "2500"
-  },
-  "eslintConfig": {
-    "env": {
-      "node": true,
-      "es2021": true,
-      "jest": true
-    },
-    "extends": "eslint:recommended",
-    "parserOptions": {
-      "ecmaVersion": 12
-    },
-    "rules": {
-      "no-console": "warn"
-    }
-  },
-  "prettier": {
-    "singleQuote": true,
-    "trailingComma": "es5",
-    "tabWidth": 2,
-    "semi": true,
-    "printWidth": 100
   }
 }

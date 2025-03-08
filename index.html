@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VarMax File Share</title>
+    <title>VarMax File Share Pro</title>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
         * {
@@ -14,7 +14,7 @@
         }
 
         body {
-            background: #1a1a1a;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
             color: #fff;
             min-height: 100vh;
             display: flex;
@@ -26,134 +26,211 @@
         .container {
             max-width: 800px;
             width: 100%;
-            background: #2d2d2d;
-            border-radius: 15px;
-            padding: 30px;
+            background: rgba(45, 45, 45, 0.95);
+            border-radius: 20px;
+            padding: 40px;
             margin-top: 50px;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
         }
 
         h1 {
             text-align: center;
             margin-bottom: 30px;
             color: #4CAF50;
+            font-size: 2.5em;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
 
         .drop-zone {
-            border: 2px dashed #4CAF50;
-            border-radius: 10px;
-            padding: 30px;
+            border: 3px dashed #4CAF50;
+            border-radius: 15px;
+            padding: 40px;
             text-align: center;
             transition: all 0.3s ease;
             position: relative;
-            min-height: 200px;
+            min-height: 250px;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             cursor: pointer;
+            background: rgba(76, 175, 80, 0.05);
+        }
+
+        .drop-zone:hover {
+            background: rgba(76, 175, 80, 0.1);
+            transform: translateY(-2px);
         }
 
         .drop-zone.dragging {
             background: rgba(76, 175, 80, 0.2);
             border-color: #69f0ae;
+            transform: scale(1.02);
         }
 
         .icon {
-            font-size: 50px;
+            font-size: 64px;
             color: #4CAF50;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
         }
 
         .browse-button {
             background: #4CAF50;
             color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            margin-top: 15px;
+            padding: 12px 30px;
+            border-radius: 25px;
+            margin-top: 20px;
             cursor: pointer;
             display: inline-block;
-            transition: background 0.3s ease;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
         }
 
         .browse-button:hover {
             background: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
         }
 
-        .file-list {
-            margin-top: 20px;
+        .files-list {
+            margin-top: 30px;
             max-height: 300px;
             overflow-y: auto;
+            padding: 10px;
         }
 
         .file-item {
+            background: rgba(64, 64, 64, 0.5);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
             display: flex;
             align-items: center;
-            padding: 10px;
-            background: #404040;
-            border-radius: 5px;
-            margin-bottom: 10px;
+            justify-content: space-between;
+            animation: slideIn 0.3s ease-out;
         }
 
-        .file-item .material-icons {
-            margin-right: 10px;
+        @keyframes slideIn {
+            from { transform: translateX(-20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
 
-        .file-item .file-name {
-            flex-grow: 1;
-            white-space: nowrap;
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .file-icon {
+            color: #4CAF50;
+        }
+
+        .file-name {
+            max-width: 300px;
             overflow: hidden;
             text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
-        .file-item .remove-btn {
+        .file-size {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9em;
+        }
+
+        .remove-file {
             color: #ff5252;
             cursor: pointer;
-            padding: 5px;
+            transition: transform 0.2s ease;
+        }
+
+        .remove-file:hover {
+            transform: scale(1.1);
         }
 
         .progress-container {
-            margin-top: 20px;
+            margin-top: 30px;
+            display: none;
         }
 
         .progress-bar {
-            width: 100%;
             height: 10px;
             background: #404040;
             border-radius: 5px;
             overflow: hidden;
+            position: relative;
         }
 
         .progress {
             width: 0%;
             height: 100%;
-            background: #4CAF50;
-            transition: width 0.2s ease;
+            background: linear-gradient(90deg, #4CAF50, #69f0ae);
+            transition: width 0.3s ease;
+            position: relative;
+        }
+
+        .progress::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.2),
+                transparent
+            );
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
         }
 
         .url-container {
             display: none;
-            margin-top: 20px;
-            background: #404040;
-            padding: 15px;
-            border-radius: 8px;
+            margin-top: 30px;
+            background: rgba(64, 64, 64, 0.5);
+            padding: 20px;
+            border-radius: 10px;
             position: relative;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .url-container.show {
+            opacity: 1;
+            transform: translateY(0);
         }
 
         .url-input {
             width: 100%;
-            background: transparent;
-            border: none;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            border-radius: 5px;
             color: #fff;
-            padding: 5px;
-            padding-right: 40px;
+            padding: 12px;
+            padding-right: 50px;
             outline: none;
             font-size: 14px;
         }
 
         .copy-btn {
             position: absolute;
-            right: 10px;
+            right: 25px;
             top: 50%;
             transform: translateY(-50%);
             background: none;
@@ -161,33 +238,22 @@
             color: #4CAF50;
             cursor: pointer;
             padding: 5px;
+            transition: all 0.3s ease;
         }
 
-        .upload-btn {
-            background: #4CAF50;
-            color: white;
-            padding: 12px 24px;
-            border-radius: 5px;
-            border: none;
-            cursor: pointer;
-            margin-top: 20px;
-            width: 100%;
-            font-size: 16px;
-            display: none;
-        }
-
-        .upload-btn:hover {
-            background: #45a049;
+        .copy-btn:hover {
+            color: #69f0ae;
+            transform: translateY(-50%) scale(1.1);
         }
 
         .footer {
-            margin-top: 30px;
-            color: #666;
+            margin-top: 40px;
+            color: rgba(255, 255, 255, 0.5);
             font-size: 12px;
             text-align: center;
         }
 
-        @media (max-width: 480px) {
+        @media (max-width: 768px) {
             .container {
                 padding: 20px;
                 margin-top: 20px;
@@ -195,105 +261,125 @@
 
             .drop-zone {
                 padding: 20px;
-                min-height: 150px;
+                min-height: 200px;
             }
 
             .icon {
-                font-size: 40px;
+                font-size: 48px;
+            }
+
+            .file-name {
+                max-width: 200px;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>VarMax File Share</h1>
+        <h1>VarMax File Share Pro</h1>
         <div class="drop-zone" id="dropZone">
             <span class="material-icons icon">cloud_upload</span>
-            <p>Drag & Drop your files here</p>
-            <div class="browse-button" id="browseButton">or Click to Browse</div>
-            <input type="file" id="fileInput" style="display: none;" multiple accept="image/*,video/*">
+            <p>Drag & Drop Multiple Files Here</p>
+            <p style="font-size: 0.9em; color: rgba(255,255,255,0.7); margin: 10px 0;">
+                Support for Images, Videos, Documents & More
+            </p>
+            <div class="browse-button" id="browseButton">Select Files</div>
+            <input type="file" id="fileInput" style="display: none;" multiple>
         </div>
-        <div class="file-list" id="fileList"></div>
-        <button class="upload-btn" id="uploadButton">Upload Files</button>
-        <div class="progress-container" id="progressContainer" style="display: none;">
+
+        <div class="files-list" id="filesList"></div>
+
+        <div class="progress-container" id="progressContainer">
             <div class="progress-bar">
                 <div class="progress" id="progressBar"></div>
             </div>
+            <p id="progressText" style="text-align: center; margin-top: 10px; color: rgba(255,255,255,0.7)"></p>
         </div>
+
         <div class="url-container" id="urlContainer">
             <input type="text" class="url-input" id="urlInput" readonly>
             <button class="copy-btn material-icons" id="copyBtn">content_copy</button>
         </div>
     </div>
-    <div class="footer">VarMax By NZ R</div>
+    <div class="footer">VarMax Pro By NZ R</div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
-        const browseButton = document.getElementById('browseButton');
-        const fileList = document.getElementById('fileList');
-        const uploadButton = document.getElementById('uploadButton');
+        const filesList = document.getElementById('filesList');
         const progressContainer = document.getElementById('progressContainer');
         const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
         const urlContainer = document.getElementById('urlContainer');
         const urlInput = document.getElementById('urlInput');
         const copyBtn = document.getElementById('copyBtn');
-
+        
         let selectedFiles = new Set();
 
-        function updateFileList() {
-            fileList.innerHTML = '';
+        function updateFilesList() {
+            filesList.innerHTML = '';
             selectedFiles.forEach(file => {
                 const fileItem = document.createElement('div');
                 fileItem.className = 'file-item';
                 fileItem.innerHTML = `
-                    <span class="material-icons">${file.type.startsWith('image/') ? 'image' : 'videocam'}</span>
-                    <span class="file-name">${file.name}</span>
-                    <span class="material-icons remove-btn">close</span>
+                    <div class="file-info">
+                        <span class="material-icons file-icon">description</span>
+                        <span class="file-name">${file.name}</span>
+                        <span class="file-size">${formatSize(file.size)}</span>
+                    </div>
+                    <span class="material-icons remove-file" data-name="${file.name}">close</span>
                 `;
-                fileItem.querySelector('.remove-btn').onclick = () => {
-                    selectedFiles.delete(file);
-                    updateFileList();
-                };
-                fileList.appendChild(fileItem);
+                filesList.appendChild(fileItem);
             });
-            uploadButton.style.display = selectedFiles.size > 0 ? 'block' : 'none';
         }
 
         function handleFiles(files) {
-            Array.from(files).forEach(file => {
-                if (file.size > 500 * 1024 * 1024) {
-                    alert(`${file.name} is too large. Maximum file size is 500MB`);
-                    return;
-                }
-                if (!file.type.match(/^(image|video)\//)) {
-                    alert(`${file.name} is not a valid image or video file`);
-                    return;
-                }
-                selectedFiles.add(file);
-            });
-            updateFileList();
+            Array.from(files).forEach(file => selectedFiles.add(file));
+            updateFilesList();
         }
 
-        browseButton.onclick = () => fileInput.click();
-        fileInput.onchange = e => handleFiles(e.target.files);
+        filesList.addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-file')) {
+                const fileName = e.target.dataset.name;
+                selectedFiles.forEach(file => {
+                    if (file.name === fileName) selectedFiles.delete(file);
+                });
+                updateFilesList();
+            }
+        });
 
-        dropZone.ondragover = e => {
+        dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
             dropZone.classList.add('dragging');
-        };
+        });
 
-        dropZone.ondragleave = () => dropZone.classList.remove('dragging');
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragging');
+        });
 
-        dropZone.ondrop = e => {
+        dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
             dropZone.classList.remove('dragging');
             handleFiles(e.dataTransfer.files);
-        };
+        });
 
-        uploadButton.onclick = () => {
+        document.getElementById('browseButton').addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        dropZone.addEventListener('click', (e) => {
+            if (e.target === dropZone) fileInput.click();
+        });
+
+        function uploadFiles() {
+            if (selectedFiles.size === 0) return;
+
             const formData = new FormData();
             selectedFiles.forEach(file => formData.append('files', file));
 
@@ -304,20 +390,24 @@
             const xhr = new XMLHttpRequest();
             xhr.open('POST', '/upload', true);
 
-            xhr.upload.onprogress = e => {
+            xhr.upload.onprogress = (e) => {
                 if (e.lengthComputable) {
                     const progress = (e.loaded / e.total) * 100;
                     progressBar.style.width = `${progress}%`;
+                    progressText.textContent = `Uploading: ${Math.round(progress)}%`;
+                    socket.emit('uploadProgress', { progress });
                 }
             };
 
             xhr.onload = () => {
                 if (xhr.status === 200) {
                     const response = JSON.parse(xhr.responseText);
-                    urlContainer.style.display = 'block';
-                    urlInput.value = `${window.location.origin}/download/${response.bundleId}`;
-                    selectedFiles.clear();
-                    updateFileList();
+                    progressText.textContent = 'Upload Complete!';
+                    setTimeout(() => {
+                        urlContainer.style.display = 'block';
+                        urlInput.value = `${window.location.origin}/download/${response.groupId}`;
+                        urlContainer.classList.add('show');
+                    }, 500);
                 } else {
                     alert('Upload failed. Please try again.');
                 }
@@ -325,14 +415,40 @@
 
             xhr.onerror = () => alert('Upload failed. Please try again.');
             xhr.send(formData);
-        };
+        }
 
-        copyBtn.onclick = () => {
+        copyBtn.addEventListener('click', () => {
             urlInput.select();
             document.execCommand('copy');
             copyBtn.textContent = 'check';
             setTimeout(() => copyBtn.textContent = 'content_copy', 2000);
-        };
+        });
+
+        function formatSize(bytes) {
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            if (bytes === 0) return '0 Bytes';
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return Math.round(bytes / Math.pow(1024, i)) + ' ' + sizes[i];
+        }
+
+        dropZone.addEventListener('paste', (e) => {
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            const files = [];
+            for (let item of items) {
+                if (item.kind === 'file') {
+                    files.push(item.getAsFile());
+                }
+            }
+            handleFiles(files);
+        });
+
+        socket.on('fileProgress', data => {
+            if (progressContainer.style.display === 'none') {
+                progressContainer.style.display = 'block';
+            }
+            progressBar.style.width = `${data.progress}%`;
+            progressText.textContent = `Uploading: ${Math.round(data.progress)}%`;
+        });
     </script>
 </body>
 </html>

@@ -18,7 +18,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 1024 * 1024 * 1024 * 10 } // Increased to 10 GB
+    limits: { fileSize: 1024 * 1024 * 1024 * 10 }
 });
 
 if (!fs.existsSync('./uploads')) {
@@ -42,28 +42,18 @@ app.get('/download/:groupId', (req, res) => {
 
 app.post('/upload', upload.array('files', 50), (req, res) => {
     const groupId = crypto.randomBytes(8).toString('hex');
-    const uploadedFiles = [];
+    const uploadedFiles = req.files.map(file => ({
+        fileId: path.parse(file.filename).name,
+        fileName: file.originalname,
+        fileSize: file.size,
+        uploadDate: new Date(),
+        path: file.path,
+        mimeType: file.mimetype
+    }));
 
-    try {
-        req.files.forEach(file => {
-            const fileId = path.parse(file.filename).name;
-            const fileInfo = {
-                fileId,
-                fileName: file.originalname,
-                fileSize: file.size,
-                uploadDate: new Date(),
-                path: file.path,
-                mimeType: file.mimetype
-            };
-            files.set(fileId, fileInfo);
-            uploadedFiles.push(fileInfo);
-        });
-
-        groupUploads.set(groupId, uploadedFiles);
-        res.json({ groupId });
-    } catch (error) {
-        res.status(500).json({ error: 'File upload failed' });
-    }
+    groupUploads.set(groupId, uploadedFiles);
+    uploadedFiles.forEach(file => files.set(file.fileId, file));
+    res.json({ groupId });
 });
 
 app.get('/group-info/:groupId', (req, res) => {
@@ -83,15 +73,18 @@ app.get('/download-group/:groupId', (req, res) => {
 
     if (groupFiles.length === 1) {
         const fileInfo = groupFiles[0];
-        fs.readFile(fileInfo.path, (err, data) => {
-            if (err) {
-                return res.status(500).json({ error: 'File not found' });
-            }
-            res.setHeader('Content-Disposition', `attachment; filename="${fileInfo.fileName}"`);
-            res.setHeader('Content-Type', fileInfo.mimeType);
-            res.setHeader('Content-Length', data.length);
-            res.send(data);
+        const fileStream = fs.createReadStream(fileInfo.path);
+        res.setHeader('Content-Disposition', `attachment; filename="${fileInfo.fileName}"`);
+        res.setHeader('Content-Type', fileInfo.mimeType);
+
+        let downloaded = 0;
+        fileStream.on('data', chunk => {
+            downloaded += chunk.length;
+            const percentage = (downloaded / fileInfo.fileSize) * 100;
+            io.emit('downloadProgress', { groupId: req.params.groupId, percentage });
         });
+
+        fileStream.pipe(res);
         return;
     }
 
@@ -100,17 +93,21 @@ app.get('/download-group/:groupId', (req, res) => {
     const output = fs.createWriteStream(zipPath);
     const archive = archiver('zip', { zlib: { level: 9 } });
 
+    let totalSize = groupFiles.reduce((acc, file) => acc + file.fileSize, 0);
+    let processedSize = 0;
+
+    archive.on('data', chunk => {
+        processedSize += chunk.length;
+        const percentage = (processedSize / totalSize) * 100;
+        io.emit('downloadProgress', { groupId: req.params.groupId, percentage });
+    });
+
     output.on('close', () => {
-        fs.readFile(zipPath, (err, data) => {
-            if (err) {
-                return res.status(500).json({ error: 'Error creating zip file' });
-            }
-            res.setHeader('Content-Disposition', `attachment; filename="${zipFileName}"`);
-            res.setHeader('Content-Type', 'application/zip');
-            res.setHeader('Content-Length', data.length);
-            res.send(data);
-            fs.unlink(zipPath, () => {});
-        });
+        const fileStream = fs.createReadStream(zipPath);
+        res.setHeader('Content-Disposition', `attachment; filename="${zipFileName}"`);
+        res.setHeader('Content-Type', 'application/zip');
+        fileStream.pipe(res);
+        fileStream.on('end', () => fs.unlink(zipPath, () => {}));
     });
 
     archive.on('error', err => {
@@ -118,35 +115,10 @@ app.get('/download-group/:groupId', (req, res) => {
     });
 
     archive.pipe(output);
-
     groupFiles.forEach(fileInfo => {
         archive.file(fileInfo.path, { name: fileInfo.fileName });
     });
-
     archive.finalize();
-});
-
-app.get('/download-file/:fileId', (req, res) => {
-    const fileInfo = files.get(req.params.fileId);
-    if (fileInfo) {
-        fs.readFile(fileInfo.path, (err, data) => {
-            if (err) {
-                return res.status(404).json({ error: 'File not found' });
-            }
-            res.setHeader('Content-Disposition', `attachment; filename="${fileInfo.fileName}"`);
-            res.setHeader('Content-Type', fileInfo.mimeType);
-            res.setHeader('Content-Length', data.length);
-            res.send(data);
-        });
-    } else {
-        res.status(404).json({ error: 'File not found' });
-    }
-});
-
-io.on('connection', socket => {
-    socket.on('uploadProgress', data => {
-        socket.broadcast.emit('fileProgress', data);
-    });
 });
 
 setInterval(() => {
@@ -155,11 +127,7 @@ setInterval(() => {
 
     files.forEach((fileInfo, fileId) => {
         if (now - fileInfo.uploadDate > twentyFourHours) {
-            fs.unlink(fileInfo.path, err => {
-                if (!err) {
-                    files.delete(fileId);
-                }
-            });
+            fs.unlink(fileInfo.path, () => files.delete(fileId));
         }
     });
 

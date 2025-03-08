@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Download - VarMax File Share</title>
+    <title>Download - VarMax File Share Pro</title>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
@@ -17,6 +17,7 @@
         :root {
             --primary: #4CAF50;
             --primary-dark: #45a049;
+            --primary-light: #69f0ae;
             --background: #1a1a1a;
             --surface: #2d2d2d;
             --surface-light: #404040;
@@ -32,20 +33,18 @@
             flex-direction: column;
             align-items: center;
             padding: 20px;
-            position: relative;
         }
 
         .container {
-            max-width: 600px;
+            max-width: 800px;
             width: 100%;
-            background: var(--surface);
+            background: rgba(45, 45, 45, 0.95);
             border-radius: 20px;
             padding: 40px;
             margin-top: 50px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            backdrop-filter: blur(10px);
             animation: slideUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
         }
 
         @keyframes slideUp {
@@ -53,48 +52,94 @@
             to { transform: translateY(0); opacity: 1; }
         }
 
-        .container::before {
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            position: relative;
+            padding-bottom: 20px;
+        }
+
+        .header::after {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
             height: 4px;
-            background: linear-gradient(90deg, var(--primary), #69f0ae);
+            background: linear-gradient(90deg, var(--primary), var(--primary-light));
+            border-radius: 2px;
         }
 
         h1 {
-            text-align: center;
-            margin-bottom: 40px;
             color: var(--primary);
             font-weight: 600;
             font-size: 2.5em;
             text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            margin-bottom: 10px;
         }
 
-        .file-info {
+        .files-container {
             background: var(--surface-light);
-            padding: 30px;
             border-radius: 15px;
+            padding: 30px;
             margin-bottom: 30px;
             animation: fadeIn 0.6s ease-out 0.3s both;
         }
 
-        .file-info p {
-            margin: 15px 0;
+        .file-list {
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .file-item {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
             display: flex;
             align-items: center;
-            color: var(--text-secondary);
+            gap: 20px;
+            transition: transform 0.3s ease;
         }
 
-        .file-info p strong {
+        .file-item:hover {
+            transform: translateX(5px);
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .file-icon {
+            color: var(--primary);
+            font-size: 32px;
+        }
+
+        .file-details {
+            flex-grow: 1;
+        }
+
+        .file-name {
+            font-weight: 500;
+            margin-bottom: 5px;
             color: var(--text);
-            margin-right: 10px;
-            min-width: 120px;
+            word-break: break-all;
         }
 
-        .file-info .material-icons {
-            margin-right: 10px;
+        .file-info {
+            display: flex;
+            gap: 20px;
+            color: var(--text-secondary);
+            font-size: 0.9em;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .info-item .material-icons {
+            font-size: 16px;
             color: var(--primary);
         }
 
@@ -129,24 +174,83 @@
             font-size: 24px;
         }
 
+        .download-progress {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 10px;
+            background: var(--surface);
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--primary-light));
+            transition: width 0.3s ease;
+            position: relative;
+        }
+
+        .progress::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.2),
+                transparent
+            );
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            color: var(--text-secondary);
+        }
+
         .footer {
-            position: fixed;
-            bottom: 15px;
+            margin-top: 30px;
             color: var(--text-secondary);
             font-size: 12px;
             text-align: center;
             letter-spacing: 1px;
-            opacity: 0.7;
-            transition: opacity 0.3s ease;
-        }
-
-        .footer:hover {
-            opacity: 1;
         }
 
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-dark);
         }
 
         @media (max-width: 768px) {
@@ -159,8 +263,17 @@
                 font-size: 2em;
             }
 
+            .file-item {
+                padding: 15px;
+                flex-direction: column;
+                text-align: center;
+                gap: 10px;
+            }
+
             .file-info {
-                padding: 20px;
+                flex-direction: column;
+                gap: 10px;
+                align-items: center;
             }
 
             .download-btn {
@@ -168,67 +281,40 @@
                 font-size: 16px;
             }
         }
-
-        @media (max-width: 480px) {
-            .container {
-                padding: 20px;
-                margin-top: 20px;
-            }
-
-            h1 {
-                font-size: 1.8em;
-                margin-bottom: 30px;
-            }
-
-            .file-info p {
-                font-size: 14px;
-            }
-
-            .file-info p strong {
-                min-width: 100px;
-            }
-
-            .download-btn {
-                padding: 12px;
-                font-size: 14px;
-            }
-        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>VarMax File Share</h1>
-        <div class="file-info">
-            <p><span class="material-icons">insert_drive_file</span><strong>File Name:</strong> <span id="fileName"></span></p>
-            <p><span class="material-icons">storage</span><strong>File Size:</strong> <span id="fileSize"></span></p>
-            <p><span class="material-icons">schedule</span><strong>Upload Date:</strong> <span id="uploadDate"></span></p>
+        <div class="header">
+            <h1>VarMax File Share Pro</h1>
+            <p>Your files are ready for download</p>
         </div>
+
+        <div class="files-container">
+            <div class="file-list" id="fileList"></div>
+        </div>
+
         <button class="download-btn" id="downloadBtn">
             <span class="material-icons icon">download</span>
-            Download File
+            Download All Files
         </button>
+
+        <div class="download-progress" id="downloadProgress">
+            <div class="progress-bar">
+                <div class="progress" id="progressBar"></div>
+            </div>
+            <div class="progress-text" id="progressText">Preparing download...</div>
+        </div>
     </div>
-    <div class="footer">VarMax By NZ R</div>
+    <div class="footer">VarMax Pro By NZ R</div>
 
     <script>
-        const fileId = window.location.pathname.split('/').pop();
-
-        fetch(`/file-info/${fileId}`)
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('fileName').textContent = data.fileName;
-                document.getElementById('fileSize').textContent = formatSize(data.fileSize);
-                document.getElementById('uploadDate').textContent = new Date(data.uploadDate).toLocaleString();
-                document.title = `Download ${data.fileName} - Varmax File Share`;
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Failed to load file information');
-            });
-
-        document.getElementById('downloadBtn').addEventListener('click', () => {
-            window.location.href = `/download-file/${fileId}`;
-        });
+        const groupId = window.location.pathname.split('/').pop();
+        const fileList = document.getElementById('fileList');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const downloadProgress = document.getElementById('downloadProgress');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
 
         function formatSize(bytes) {
             const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -236,6 +322,77 @@
             const i = Math.floor(Math.log(bytes) / Math.log(1024));
             return Math.round(bytes / Math.pow(1024, i)) + ' ' + sizes[i];
         }
+
+        function getFileIcon(mimeType) {
+            if (mimeType.startsWith('image/')) return 'image';
+            if (mimeType.startsWith('video/')) return 'videocam';
+            if (mimeType.startsWith('audio/')) return 'audiotrack';
+            if (mimeType.includes('pdf')) return 'picture_as_pdf';
+            if (mimeType.includes('zip') || mimeType.includes('rar')) return 'folder_zip';
+            return 'insert_drive_file';
+        }
+
+        fetch(`/group-info/${groupId}`)
+            .then(response => response.json())
+            .then(files => {
+                files.forEach(file => {
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'file-item';
+                    fileItem.innerHTML = `
+                        <span class="material-icons file-icon">${getFileIcon(file.mimeType)}</span>
+                        <div class="file-details">
+                            <div class="file-name">${file.fileName}</div>
+                            <div class="file-info">
+                                <span class="info-item">
+                                    <span class="material-icons">storage</span>
+                                    ${formatSize(file.fileSize)}
+                                </span>
+                                <span class="info-item">
+                                    <span class="material-icons">schedule</span>
+                                    ${new Date(file.uploadDate).toLocaleString()}
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                    fileList.appendChild(fileItem);
+                });
+
+                document.title = `Download ${files.length > 1 ? 'Files' : files[0].fileName} - VarMax Pro`;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to load file information');
+            });
+
+        downloadBtn.addEventListener('click', () => {
+            downloadProgress.style.display = 'block';
+            progressBar.style.width = '0%';
+            progressText.textContent = 'Starting download...';
+
+            const downloadUrl = `/download-group/${groupId}`;
+            
+            fetch(downloadUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error('Download failed');
+                    return response.blob();
+                })
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = `VarMax_Files_${groupId}.zip`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    progressBar.style.width = '100%';
+                    progressText.textContent = 'Download complete!';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    progressText.textContent = 'Download failed. Please try again.';
+                });
+        });
     </script>
 </body>
 </html>

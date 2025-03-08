@@ -123,7 +123,7 @@ io.on('connection', socket => {
     });
 });
 
-const cleanupTask = setInterval(() => {
+setInterval(() => {
     const twentyFourHours = 24 * 60 * 60 * 1000;
     const now = new Date();
 

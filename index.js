@@ -65,62 +65,6 @@ app.get('/group-info/:groupId', (req, res) => {
     }
 });
 
-app.get('/download-group/:groupId', (req, res) => {
-    const groupFiles = groupUploads.get(req.params.groupId);
-    if (!groupFiles) {
-        return res.status(404).json({ error: 'Files not found' });
-    }
-
-    if (groupFiles.length === 1) {
-        const fileInfo = groupFiles[0];
-        const fileStream = fs.createReadStream(fileInfo.path);
-        res.setHeader('Content-Disposition', `attachment; filename="${fileInfo.fileName}"`);
-        res.setHeader('Content-Type', fileInfo.mimeType);
-
-        let downloaded = 0;
-        fileStream.on('data', chunk => {
-            downloaded += chunk.length;
-            const percentage = (downloaded / fileInfo.fileSize) * 100;
-            io.emit('downloadProgress', { groupId: req.params.groupId, percentage });
-        });
-
-        fileStream.pipe(res);
-        return;
-    }
-
-    const zipFileName = `VarMax_Files_${req.params.groupId}.zip`;
-    const zipPath = path.join('./temp', zipFileName);
-    const output = fs.createWriteStream(zipPath);
-    const archive = archiver('zip', { zlib: { level: 9 } });
-
-    let totalSize = groupFiles.reduce((acc, file) => acc + file.fileSize, 0);
-    let processedSize = 0;
-
-    archive.on('data', chunk => {
-        processedSize += chunk.length;
-        const percentage = (processedSize / totalSize) * 100;
-        io.emit('downloadProgress', { groupId: req.params.groupId, percentage });
-    });
-
-    output.on('close', () => {
-        const fileStream = fs.createReadStream(zipPath);
-        res.setHeader('Content-Disposition', `attachment; filename="${zipFileName}"`);
-        res.setHeader('Content-Type', 'application/zip');
-        fileStream.pipe(res);
-        fileStream.on('end', () => fs.unlink(zipPath, () => {}));
-    });
-
-    archive.on('error', err => {
-        res.status(500).json({ error: 'Error creating zip file' });
-    });
-
-    archive.pipe(output);
-    groupFiles.forEach(fileInfo => {
-        archive.file(fileInfo.path, { name: fileInfo.fileName });
-    });
-    archive.finalize();
-});
-
 setInterval(() => {
     const twentyFourHours = 24 * 60 * 60 * 1000;
     const now = new Date();

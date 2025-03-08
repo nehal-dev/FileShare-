@@ -7,142 +7,237 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const archiver = require('archiver');
+const compression = require('compression');
+const cluster = require('cluster');
+const numCPUs = require('os').cpus().length;
+const stream = require('stream');
+const { pipeline } = require('stream/promises');
+const zlib = require('zlib');
+
+app.use(compression({
+    level: 9,
+    threshold: 0
+}));
+
+app.use((req, res, next) => {
+    res.setHeader('Cache-Control', 'public, max-age=31536000');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    next();
+});
 
 const storage = multer.diskStorage({
-    destination: './uploads/',
+    destination: (req, file, cb) => {
+        const dir = './uploads';
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        cb(null, dir);
+    },
     filename: (req, file, cb) => {
         const fileId = crypto.randomBytes(16).toString('hex');
-        cb(null, fileId + path.extname(file.originalname));
+        cb(null, `${fileId}${path.extname(file.originalname)}`);
     }
 });
 
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 1024 * 1024 * 1024 }
-});
-
-if (!fs.existsSync('./uploads')) {
-    fs.mkdirSync('./uploads');
-}
-
-if (!fs.existsSync('./temp')) {
-    fs.mkdirSync('./temp');
-}
+    limits: {
+        fileSize: 10 * 1024 * 1024 * 1024, // 10GB limit
+        files: 100
+    },
+    fileFilter: (req, file, cb) => {
+        cb(null, true);
+    }
+}).array('files', 100);
 
 const files = new Map();
 const groupUploads = new Map();
+const activeDownloads = new Map();
+const uploadSpeeds = new Map();
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
+if (cluster.isMaster) {
+    for (let i = 0; i < numCPUs; i++) {
+        cluster.fork();
+    }
 
-app.get('/download/:groupId', (req, res) => {
-    res.sendFile(path.join(__dirname, 'download.html'));
-});
-
-app.post('/upload', upload.array('files', 50), (req, res) => {
-    const groupId = crypto.randomBytes(8).toString('hex');
-    const uploadedFiles = [];
-
-    req.files.forEach(file => {
-        const fileId = path.parse(file.filename).name;
-        const fileInfo = {
-            fileId,
-            fileName: file.originalname,
-            fileSize: file.size,
-            uploadDate: new Date(),
-            path: file.path,
-            mimeType: file.mimetype
-        };
-        files.set(fileId, fileInfo);
-        uploadedFiles.push(fileInfo);
+    cluster.on('exit', (worker, code, signal) => {
+        console.log(`Worker ${worker.process.pid} died. Restarting...`);
+        cluster.fork();
+    });
+} else {
+    app.get('/', (req, res) => {
+        res.sendFile(path.join(__dirname, 'index.html'));
     });
 
-    groupUploads.set(groupId, uploadedFiles);
-    res.json({ groupId });
-});
+    app.post('/upload', async (req, res) => {
+        try {
+            upload(req, res, async (err) => {
+                if (err) {
+                    return res.status(400).json({ error: err.message });
+                }
 
-app.get('/group-info/:groupId', (req, res) => {
-    const groupFiles = groupUploads.get(req.params.groupId);
-    if (groupFiles) {
-        res.json(groupFiles);
-    } else {
-        res.status(404).json({ error: 'Files not found' });
-    }
-});
+                const groupId = crypto.randomBytes(8).toString('hex');
+                const uploadedFiles = [];
+                const startTime = Date.now();
 
-app.get('/download-group/:groupId', (req, res) => {
-    const groupFiles = groupUploads.get(req.params.groupId);
-    if (!groupFiles) {
-        return res.status(404).send('Files not found');
-    }
+                for (const file of req.files) {
+                    const fileId = path.parse(file.filename).name;
+                    const fileInfo = {
+                        fileId,
+                        fileName: file.originalname,
+                        fileSize: file.size,
+                        uploadDate: new Date(),
+                        path: file.path,
+                        mimeType: file.mimetype,
+                        checksum: await calculateChecksum(file.path)
+                    };
+                    files.set(fileId, fileInfo);
+                    uploadedFiles.push(fileInfo);
 
-    if (groupFiles.length === 1) {
-        const fileInfo = groupFiles[0];
-        return res.download(fileInfo.path, fileInfo.fileName);
-    }
+                    const uploadSpeed = file.size / ((Date.now() - startTime) / 1000);
+                    uploadSpeeds.set(fileId, uploadSpeed);
+                }
 
-    const zipFileName = `VarMax_Files_${req.params.groupId}.zip`;
-    const zipPath = path.join('./temp', zipFileName);
-    const output = fs.createWriteStream(zipPath);
-    const archive = archiver('zip', { zlib: { level: 9 } });
-
-    output.on('close', () => {
-        res.download(zipPath, zipFileName, () => {
-            fs.unlink(zipPath, err => {
-                if (err) console.error('Error deleting temp zip:', err);
+                groupUploads.set(groupId, uploadedFiles);
+                res.json({ 
+                    groupId,
+                    uploadSpeed: calculateAverageSpeed(uploadedFiles.map(f => f.fileId))
+                });
             });
+        } catch (error) {
+            res.status(500).json({ error: 'Upload failed' });
+        }
+    });
+
+    app.get('/download/:groupId', async (req, res) => {
+        try {
+            const groupFiles = groupUploads.get(req.params.groupId);
+            if (!groupFiles) {
+                return res.status(404).send('Files not found');
+            }
+
+            const startTime = Date.now();
+            activeDownloads.set(req.params.groupId, startTime);
+
+            if (groupFiles.length === 1) {
+                const fileInfo = groupFiles[0];
+                const fileStream = fs.createReadStream(fileInfo.path);
+                const compressionStream = zlib.createGzip({ level: 9 });
+
+                res.setHeader('Content-Disposition', `attachment; filename="${fileInfo.fileName}"`);
+                res.setHeader('Content-Type', fileInfo.mimeType);
+                res.setHeader('Transfer-Encoding', 'chunked');
+
+                await pipeline(fileStream, compressionStream, res);
+            } else {
+                const zipFileName = `VarMax_Files_${req.params.groupId}.zip`;
+                const archive = archiver('zip', {
+                    zlib: { level: 9 },
+                    store: false
+                });
+
+                res.setHeader('Content-Disposition', `attachment; filename="${zipFileName}"`);
+                res.setHeader('Content-Type', 'application/zip');
+                res.setHeader('Transfer-Encoding', 'chunked');
+
+                archive.pipe(res);
+
+                for (const fileInfo of groupFiles) {
+                    archive.file(fileInfo.path, { name: fileInfo.fileName });
+                }
+
+                await archive.finalize();
+            }
+
+            const endTime = Date.now();
+            const downloadSpeed = calculateDownloadSpeed(req.params.groupId, startTime, endTime);
+            io.emit('downloadSpeed', { groupId: req.params.groupId, speed: downloadSpeed });
+
+        } catch (error) {
+            res.status(500).send('Download failed');
+        } finally {
+            activeDownloads.delete(req.params.groupId);
+        }
+    });
+
+    app.get('/status/:groupId', (req, res) => {
+        const groupFiles = groupUploads.get(req.params.groupId);
+        if (groupFiles) {
+            const totalSize = groupFiles.reduce((sum, file) => sum + file.fileSize, 0);
+            const isDownloading = activeDownloads.has(req.params.groupId);
+            res.json({
+                status: 'active',
+                files: groupFiles.length,
+                totalSize,
+                isDownloading
+            });
+        } else {
+            res.status(404).json({ status: 'not found' });
+        }
+    });
+
+    io.on('connection', (socket) => {
+        socket.on('uploadProgress', (data) => {
+            socket.broadcast.emit('fileProgress', data);
+        });
+
+        socket.on('downloadStart', (data) => {
+            activeDownloads.set(data.groupId, Date.now());
         });
     });
 
-    archive.on('error', err => {
-        res.status(500).send('Error creating zip file');
-    });
+    const cleanupInterval = setInterval(() => {
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+        const now = new Date();
 
-    archive.pipe(output);
-
-    groupFiles.forEach(fileInfo => {
-        archive.file(fileInfo.path, { name: fileInfo.fileName });
-    });
-
-    archive.finalize();
-});
-
-app.get('/download-file/:fileId', (req, res) => {
-    const fileInfo = files.get(req.params.fileId);
-    if (fileInfo) {
-        res.download(fileInfo.path, fileInfo.fileName);
-    } else {
-        res.status(404).send('File not found');
-    }
-});
-
-io.on('connection', socket => {
-    socket.on('uploadProgress', data => {
-        socket.broadcast.emit('fileProgress', data);
-    });
-});
-
-setInterval(() => {
-    const twentyFourHours = 24 * 60 * 60 * 1000;
-    const now = new Date();
-
-    files.forEach((fileInfo, fileId) => {
-        if (now - fileInfo.uploadDate > twentyFourHours) {
-            fs.unlink(fileInfo.path, err => {
-                if (!err) {
+        files.forEach((fileInfo, fileId) => {
+            if (now - fileInfo.uploadDate > twentyFourHours) {
+                fs.unlink(fileInfo.path, () => {
                     files.delete(fileId);
-                }
-            });
-        }
-    });
+                    uploadSpeeds.delete(fileId);
+                });
+            }
+        });
 
-    groupUploads.forEach((groupFiles, groupId) => {
-        if (now - groupFiles[0].uploadDate > twentyFourHours) {
-            groupUploads.delete(groupId);
-        }
-    });
-}, 60 * 60 * 1000);
+        groupUploads.forEach((groupFiles, groupId) => {
+            if (now - groupFiles[0].uploadDate > twentyFourHours) {
+                groupUploads.delete(groupId);
+            }
+        });
+    }, 30 * 60 * 1000);
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+    const PORT = process.env.PORT || 3000;
+    server.listen(PORT, () => console.log(`Worker ${process.pid} started on port ${PORT}`));
+}
+
+async function calculateChecksum(filePath) {
+    return new Promise((resolve, reject) => {
+        const hash = crypto.createHash('sha256');
+        const stream = fs.createReadStream(filePath);
+        stream.on('data', data => hash.update(data));
+        stream.on('end', () => resolve(hash.digest('hex')));
+        stream.on('error', reject);
+    });
+}
+
+function calculateAverageSpeed(fileIds) {
+    const speeds = fileIds.map(id => uploadSpeeds.get(id)).filter(Boolean);
+    return speeds.length ? speeds.reduce((a, b) => a + b) / speeds.length : 0;
+}
+
+function calculateDownloadSpeed(groupId, startTime, endTime) {
+    const groupFiles = groupUploads.get(groupId);
+    if (!groupFiles) return 0;
+    
+    const totalSize = groupFiles.reduce((sum, file) => sum + file.fileSize, 0);
+    const duration = (endTime - startTime) / 1000;
+    return totalSize / duration;
+}
+
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection:', reason);
+});

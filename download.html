@@ -43,38 +43,53 @@
             background: rgba(45, 45, 45, 0.95);
             border-radius: 20px;
             padding: 40px;
-            margin-top: 50px;
+            margin-top: 30px;
+            margin-bottom: 20px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.3);
             backdrop-filter: blur(10px);
         }
 
         .header {
             text-align: center;
-            margin-bottom: 40px;
+            margin-bottom: 30px;
             position: relative;
-            padding-bottom: 20px;
+            padding-bottom: 15px;
             border-bottom: 2px solid var(--primary);
         }
 
         h1 {
             color: var(--primary);
             font-weight: 600;
-            font-size: 2.5em;
+            font-size: 2.2em;
             text-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
 
         .files-container {
             background: var(--surface-light);
             border-radius: 15px;
-            padding: 30px;
-            margin-bottom: 30px;
+            padding: 25px;
+            margin-bottom: 25px;
         }
 
         .file-list {
             max-height: 600px;
             overflow-y: auto;
             padding-right: 10px;
+        }
+
+        .file-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .file-list::-webkit-scrollbar-track {
+            background: var(--surface);
+            border-radius: 4px;
+        }
+
+        .file-list::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 4px;
         }
 
         .file-item {
@@ -94,8 +109,8 @@
         }
 
         .file-thumbnail {
-            width: 100px;
-            height: 100px;
+            width: 90px;
+            height: 90px;
             border-radius: 8px;
             overflow: hidden;
             position: relative;
@@ -114,7 +129,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 40px;
+            font-size: 36px;
             color: var(--text-secondary);
         }
 
@@ -156,12 +171,13 @@
             transition: all 0.3s ease;
             background: var(--primary);
             color: white;
+            font-size: 0.95em;
         }
 
         .download-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
             background: var(--primary-dark);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
 
         .progress-bar {
@@ -181,29 +197,28 @@
         }
 
         .download-all-btn {
-            width: 100%;
-            padding: 20px;
+            width: auto;
+            padding: 12px 24px;
             background: var(--primary);
             border: none;
-            border-radius: 15px;
+            border-radius: 8px;
             color: white;
-            font-size: 18px;
+            font-size: 15px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 15px;
+            gap: 8px;
             transition: all 0.3s ease;
-            text-transform: uppercase;
-            letter-spacing: 1px;
             font-weight: 500;
-            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+            margin: 0 auto;
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.2);
         }
 
         .download-all-btn:hover {
             background: var(--primary-dark);
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+            box-shadow: 0 6px 15px rgba(76, 175, 80, 0.3);
         }
 
         .file-type-badge {
@@ -212,32 +227,55 @@
             right: 8px;
             background: var(--primary);
             color: white;
-            padding: 4px 8px;
+            padding: 3px 6px;
             border-radius: 4px;
-            font-size: 0.8em;
+            font-size: 0.7em;
             text-transform: uppercase;
+        }
+
+        .footer {
+            color: var(--text-secondary);
+            font-size: 13px;
+            text-align: center;
+            margin-top: auto;
+            padding: 15px;
+            letter-spacing: 0.5px;
         }
 
         @media (max-width: 768px) {
             .container {
                 padding: 20px;
-                margin-top: 20px;
+                margin-top: 15px;
             }
 
             .file-item {
                 flex-direction: column;
                 text-align: center;
+                padding: 15px;
             }
 
             .file-thumbnail {
-                width: 150px;
-                height: 150px;
+                width: 120px;
+                height: 120px;
             }
 
             .file-info {
                 flex-direction: column;
-                gap: 10px;
+                gap: 8px;
                 align-items: center;
+            }
+
+            .download-btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .download-all-btn {
+                width: 100%;
+            }
+
+            h1 {
+                font-size: 1.8em;
             }
         }
     </style>
@@ -258,6 +296,8 @@
             Download All Files
         </button>
     </div>
+
+    <div class="footer">VarMax Pro By NZ R</div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
